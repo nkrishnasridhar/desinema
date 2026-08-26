@@ -41,6 +41,7 @@ function setStatus(message, isError = false) {
 function resetPlayer() {
   currentMovie = null;
   usingProxy = false;
+  document.body.classList.remove("is-playing");
   player.pause();
   player.removeAttribute("src");
   player.load();
@@ -55,6 +56,7 @@ function resetResults() {
   moreResultsEl.hidden = true;
   moreMatchesButton.hidden = true;
   moreMatchesButton.setAttribute("aria-expanded", "false");
+  moreMatchesButton.textContent = "Wrong title? See other matches";
 }
 
 function highlightSelected(movieId) {
@@ -74,6 +76,7 @@ function startPlayback(src) {
 function playMovie(movie) {
   currentMovie = movie;
   usingProxy = false;
+  document.body.classList.add("is-playing");
   playerPanel.hidden = false;
   nowPlaying.textContent = movieLabel(movie);
   highlightSelected(movie.id);
