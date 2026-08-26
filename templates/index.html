@@ -3,14 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Movie search</title>
+    <title>Personal Einthusan Player</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body>
     <main class="layout">
       <header>
-        <h1>Movie search</h1>
-        <p class="subtitle">Local personal player</p>
+        <h1>Personal Einthusan Player</h1>
       </header>
 
       <form id="search-form" class="search-form">
@@ -29,7 +28,7 @@
           <span>Language</span>
           <select id="language" name="lang">
             {% for language in languages %}
-            <option value="{{ language }}">{{ language|capitalize }}</option>
+            <option value="{{ language }}"{% if loop.first %} selected{% endif %}>{{ language|capitalize }}</option>
             {% endfor %}
           </select>
         </label>
@@ -43,8 +42,12 @@
         <video id="player" controls playsinline></video>
       </section>
 
-      <section>
+      <section class="results-section">
         <ul id="results" class="results"></ul>
+        <button id="more-matches" class="more-matches" type="button" hidden>
+          Wrong title? See other matches
+        </button>
+        <ul id="more-results" class="results more-results" hidden></ul>
       </section>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>

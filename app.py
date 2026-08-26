@@ -1,4 +1,5 @@
 import re
+from difflib import SequenceMatcher
 from urllib.parse import urljoin
 
 import requests
@@ -8,14 +9,14 @@ from flask import Flask, Response, jsonify, render_template, request, stream_wit
 app = Flask(__name__)
 
 LANGUAGES = [
-    "hindi",
     "tamil",
+    "hindi",
     "telugu",
     "malayalam",
     "kannada",
     "bengali",
-    "punjabi",
     "marathi",
+    "punjabi",
 ]
 
 EINTHUSAN_ORIGIN = "https://einthusan.tv"
@@ -95,6 +96,47 @@ def parse_search_html(html):
     return results
 
 
+def normalize_title(value):
+    return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+
+
+def title_match_score(query, title):
+    """Higher is better. Prefers exact titles over near-misses like Don vs Dono."""
+    q = (query or "").strip().lower()
+    t = (title or "").strip().lower()
+    qn = normalize_title(q)
+    tn = normalize_title(t)
+    if not qn or not tn:
+        return 0.0
+
+    if qn == tn:
+        return 100.0
+
+    tokens = re.findall(r"[a-z0-9]+", t)
+    if qn in tokens:
+        return 95.0 - abs(len(tn) - len(qn)) * 0.01
+
+    if tn.startswith(qn):
+        return 80.0 - (len(tn) - len(qn))
+
+    if qn.startswith(tn) and len(tn) >= 3:
+        return 70.0 - (len(qn) - len(tn))
+
+    ratio = SequenceMatcher(None, qn, tn).ratio()
+    return ratio * 60.0
+
+
+def rank_results(results, query):
+    return sorted(
+        results,
+        key=lambda movie: (
+            title_match_score(query, movie.get("title", "")),
+            -(int(movie["year"]) if movie.get("year") and str(movie["year"]).isdigit() else 0),
+        ),
+        reverse=True,
+    )
+
+
 def fetch_search_results(query, lang):
     response = requests.get(
         SEARCH_URL,
@@ -106,7 +148,7 @@ def fetch_search_results(query, lang):
     html = response.text
     if not html.strip():
         raise ValueError("Einthusan returned an empty search page.")
-    return parse_search_html(html)
+    return rank_results(parse_search_html(html), query)
 
 
 def cdn_mp4_url(host, movie_id):

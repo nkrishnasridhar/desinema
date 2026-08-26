@@ -1,6 +1,6 @@
-# Movie search (personal)
+# Personal Einthusan Player
 
-Local web app: search a movie by title and language, then play it in the browser.
+Local web app: search an Indian movie by title and language, then play it in the browser.
 
 ## Run locally
 

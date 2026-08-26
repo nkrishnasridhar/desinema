@@ -4,12 +4,15 @@ const languageSelect = document.getElementById("language");
 const searchButton = form.querySelector("button[type='submit']");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
+const moreResultsEl = document.getElementById("more-results");
+const moreMatchesButton = document.getElementById("more-matches");
 const playerPanel = document.getElementById("player-panel");
 const nowPlaying = document.getElementById("now-playing");
 const player = document.getElementById("player");
 
 let currentMovie = null;
 let usingProxy = false;
+let lastResults = [];
 
 function cdnUrl(movieId) {
   return `https://cdn2.einthusan.io/etv/content/D${movieId}.mp4`;
@@ -45,8 +48,17 @@ function resetPlayer() {
   nowPlaying.textContent = "Now playing";
 }
 
+function resetResults() {
+  lastResults = [];
+  resultsEl.replaceChildren();
+  moreResultsEl.replaceChildren();
+  moreResultsEl.hidden = true;
+  moreMatchesButton.hidden = true;
+  moreMatchesButton.setAttribute("aria-expanded", "false");
+}
+
 function highlightSelected(movieId) {
-  for (const button of resultsEl.querySelectorAll(".result")) {
+  for (const button of document.querySelectorAll(".result")) {
     button.classList.toggle("selected", button.dataset.id === movieId);
   }
 }
@@ -68,42 +80,64 @@ function playMovie(movie) {
   startPlayback(cdnUrl(movie.id));
 }
 
+function createResultButton(movie) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "result";
+  button.dataset.id = movie.id;
+
+  if (movie.poster) {
+    const img = document.createElement("img");
+    img.className = "poster";
+    img.src = movie.poster;
+    img.alt = "";
+    button.append(img);
+  }
+
+  const meta = document.createElement("span");
+  meta.className = "result-meta";
+  const title = document.createElement("strong");
+  title.textContent = movie.title;
+  meta.append(title);
+  if (movie.year) {
+    const year = document.createElement("span");
+    year.textContent = movie.year;
+    meta.append(year);
+  }
+  button.append(meta);
+  button.addEventListener("click", () => playMovie(movie));
+  return button;
+}
+
 function renderResults(results) {
-  resultsEl.replaceChildren();
-  for (const movie of results) {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "result";
-    button.dataset.id = movie.id;
+  resetResults();
+  lastResults = results;
+  if (results.length === 0) {
+    return;
+  }
 
-    if (movie.poster) {
-      const img = document.createElement("img");
-      img.className = "poster";
-      img.src = movie.poster;
-      img.alt = "";
-      button.append(img);
-    }
+  const bestItem = document.createElement("li");
+  bestItem.append(createResultButton(results[0]));
+  resultsEl.append(bestItem);
 
-    const meta = document.createElement("span");
-    meta.className = "result-meta";
-    const title = document.createElement("strong");
-    title.textContent = movie.title;
-    meta.append(title);
-    if (movie.year) {
-      const year = document.createElement("span");
-      year.textContent = movie.year;
-      meta.append(year);
+  if (results.length > 1) {
+    moreMatchesButton.hidden = false;
+    for (const movie of results.slice(1)) {
+      const item = document.createElement("li");
+      item.append(createResultButton(movie));
+      moreResultsEl.append(item);
     }
-    button.append(meta);
-    button.addEventListener("click", () => {
-      setStatus(`${results.length} result${results.length === 1 ? "" : "s"}`);
-      playMovie(movie);
-    });
-    item.append(button);
-    resultsEl.append(item);
   }
 }
+
+moreMatchesButton.addEventListener("click", () => {
+  const expanding = moreResultsEl.hidden;
+  moreResultsEl.hidden = !expanding;
+  moreMatchesButton.setAttribute("aria-expanded", expanding ? "true" : "false");
+  moreMatchesButton.textContent = expanding
+    ? "Hide other matches"
+    : "Wrong title? See other matches";
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -114,7 +148,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   searchButton.disabled = true;
-  resultsEl.replaceChildren();
+  resetResults();
   resetPlayer();
   setStatus("Searching…");
 
@@ -139,9 +173,10 @@ form.addEventListener("submit", async (event) => {
       return;
     }
 
-    setStatus(`${results.length} result${results.length === 1 ? "" : "s"}`);
+    const best = results[0];
+    setStatus("");
     renderResults(results);
-    playMovie(results[0]);
+    playMovie(best);
   } catch {
     setStatus("Could not reach the search server.", true);
   } finally {
