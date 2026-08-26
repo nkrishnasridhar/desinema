@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Movie search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main class="layout">
+      <header>
+        <h1>Movie search</h1>
+        <p class="subtitle">Local personal player</p>
+      </header>
+
+      <form id="search-form" class="search-form">
+        <label class="field">
+          <span>Title</span>
+          <input
+            id="query"
+            name="q"
+            type="search"
+            placeholder="Enter a movie name"
+            autocomplete="off"
+            required
+          />
+        </label>
+        <label class="field">
+          <span>Language</span>
+          <select id="language" name="lang">
+            {% for language in languages %}
+            <option value="{{ language }}">{{ language|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Search</button>
+      </form>
+
+      <p id="status" class="status" role="status" hidden></p>
+
+      <section class="player-panel" hidden>
+        <h2 id="now-playing">Now playing</h2>
+        <video id="player" controls playsinline></video>
+      </section>
+
+      <section>
+        <ul id="results" class="results"></ul>
+      </section>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </body>
+</html>
