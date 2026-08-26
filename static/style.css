@@ -69,7 +69,7 @@ button {
   padding: 0.65rem 0.75rem;
 }
 
-button {
+.search-form button[type="submit"] {
   background: var(--accent);
   color: #0b1220;
   font-weight: 600;
@@ -78,9 +78,18 @@ button {
   flex: 0 0 auto;
 }
 
+.search-form button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .status {
   margin: 1rem 0 0;
   color: var(--muted);
+}
+
+.status.error {
+  color: #ff8b8b;
 }
 
 .player-panel {
@@ -104,4 +113,40 @@ video {
   padding: 0;
   display: grid;
   gap: 0.75rem;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.result:hover,
+.result.selected {
+  border-color: var(--accent);
+}
+
+.poster {
+  width: 56px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #10131a;
+  flex: 0 0 auto;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-meta span {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
