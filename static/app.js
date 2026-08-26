@@ -8,8 +8,15 @@ const playerPanel = document.getElementById("player-panel");
 const nowPlaying = document.getElementById("now-playing");
 const player = document.getElementById("player");
 
+let currentMovie = null;
+let usingProxy = false;
+
 function cdnUrl(movieId) {
   return `https://cdn2.einthusan.io/etv/content/D${movieId}.mp4`;
+}
+
+function proxyUrl(movieId) {
+  return `/api/stream/${encodeURIComponent(movieId)}`;
 }
 
 function movieLabel(movie) {
@@ -29,6 +36,8 @@ function setStatus(message, isError = false) {
 }
 
 function resetPlayer() {
+  currentMovie = null;
+  usingProxy = false;
   player.pause();
   player.removeAttribute("src");
   player.load();
@@ -42,15 +51,21 @@ function highlightSelected(movieId) {
   }
 }
 
-function playMovie(movie) {
-  playerPanel.hidden = false;
-  nowPlaying.textContent = movieLabel(movie);
-  player.src = cdnUrl(movie.id);
-  highlightSelected(movie.id);
+function startPlayback(src) {
+  player.src = src;
   const playPromise = player.play();
   if (playPromise) {
     playPromise.catch(() => {});
   }
+}
+
+function playMovie(movie) {
+  currentMovie = movie;
+  usingProxy = false;
+  playerPanel.hidden = false;
+  nowPlaying.textContent = movieLabel(movie);
+  highlightSelected(movie.id);
+  startPlayback(cdnUrl(movie.id));
 }
 
 function renderResults(results) {
@@ -135,7 +150,12 @@ form.addEventListener("submit", async (event) => {
 });
 
 player.addEventListener("error", () => {
-  if (!player.src) {
+  if (!currentMovie || !player.src) {
+    return;
+  }
+  if (!usingProxy) {
+    usingProxy = true;
+    startPlayback(proxyUrl(currentMovie.id));
     return;
   }
   setStatus("Video failed to load.", true);
