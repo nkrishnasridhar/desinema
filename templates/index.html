@@ -25,45 +25,99 @@
         <h1>DeSinema</h1>
       </header>
 
-      <form id="search-form" class="search-form">
-        <label class="field">
-          <span>Title</span>
-          <input
-            id="query"
-            name="q"
-            type="search"
-            placeholder="Enter a movie name"
-            autocomplete="off"
-            required
-          />
-        </label>
-        <label class="field">
-          <span>Language</span>
-          <select id="language" name="lang">
+      <div class="toolbar">
+        <nav class="tabs" role="tablist" aria-label="Browse">
+          <button
+            type="button"
+            class="tab"
+            id="tab-home"
+            role="tab"
+            data-tab="home"
+            aria-selected="true"
+            aria-controls="home-panel"
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            class="tab"
+            id="tab-latest"
+            role="tab"
+            data-tab="latest"
+            aria-selected="false"
+            aria-controls="latest-panel"
+          >
+            Latest
+          </button>
+        </nav>
+        <form id="search-form" class="search-form">
+          <label class="field query-field">
+            <span class="visually-hidden">Title</span>
+            <input
+              id="query"
+              name="q"
+              type="search"
+              placeholder="Search a movie"
+              autocomplete="off"
+              required
+            />
+          </label>
+          <button type="submit">Search</button>
+        </form>
+        <label class="field language-field">
+          <span class="visually-hidden">Language</span>
+          <select id="language" name="lang" aria-label="Language">
             {% for language in languages %}
             <option value="{{ language }}"{% if loop.first %} selected{% endif %}>{{ language|capitalize }}</option>
             {% endfor %}
           </select>
         </label>
-        <button type="submit">Search</button>
-      </form>
+      </div>
 
       <p id="status" class="status" role="status" hidden></p>
 
-      <section id="player-panel" class="player-panel" hidden>
-        <div class="screen-frame">
-          <p id="now-playing" class="now-playing">Now playing</p>
-          <video id="player" controls playsinline></video>
-        </div>
-      </section>
+      <div class="stage">
+        <section id="player-panel" class="player-panel">
+          <div class="screen-frame">
+            <p id="now-playing" class="now-playing">Select a movie to play</p>
+            <video id="player" controls playsinline></video>
+          </div>
+        </section>
 
-      <section class="results-section">
-        <ul id="results" class="results"></ul>
-        <button id="more-matches" class="more-matches" type="button" hidden>
-          Wrong title? See other matches
-        </button>
-        <ul id="more-results" class="results more-results" hidden></ul>
-      </section>
+        <div class="list-column">
+          <section id="home-panel" class="browse-panel" role="tabpanel" aria-labelledby="tab-home">
+            <ul id="home-results" class="results card-grid"></ul>
+          </section>
+
+          <section
+            id="latest-panel"
+            class="browse-panel"
+            role="tabpanel"
+            aria-labelledby="tab-latest"
+            hidden
+          >
+            <ul id="latest-results" class="results card-grid">
+              <li class="pager-slot">
+                <div class="pager">
+                  <button type="button" id="latest-prev">Prev</button>
+                  <span id="latest-page-label">Page 1</span>
+                  <button type="button" id="latest-next">Next</button>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section
+            id="search-panel"
+            class="browse-panel"
+            role="region"
+            aria-label="Search results"
+            hidden
+          >
+            <ul id="results" class="results card-grid"></ul>
+          </section>
+        </div>
+      </div>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>

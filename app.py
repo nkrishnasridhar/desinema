@@ -20,11 +20,13 @@ LANGUAGES = [
 ]
 
 EINTHUSAN_ORIGIN = "https://einthusan.tv"
-SEARCH_URL = f"{EINTHUSAN_ORIGIN}/movie/results/"
+RESULTS_URL = f"{EINTHUSAN_ORIGIN}/movie/results/"
+BROWSE_URL = f"{EINTHUSAN_ORIGIN}/movie/browse/"
+FEATURED_LIMIT = 7
 WATCH_ID_RE = re.compile(r"/movie/watch/([A-Za-z0-9]+)/")
 MOVIE_ID_RE = re.compile(r"^[A-Za-z0-9]+$")
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
-CDN_HOSTS = ("cdn2.einthusan.io", "cdn1.einthusan.io", "cdn3.einthusan.io")
+CDN_HOSTS = ("cdn2.einthusan.io",)
 FORWARD_STREAM_HEADERS = {
     "content-type",
     "content-length",
@@ -52,47 +54,90 @@ def absolute_url(src):
     return urljoin(EINTHUSAN_ORIGIN + "/", src)
 
 
-def parse_search_html(html):
+def movie_from_item(item):
+    link = item.select_one('a[href*="/movie/watch/"]')
+    if not link or not link.get("href"):
+        return None
+    match = WATCH_ID_RE.search(link["href"])
+    if not match:
+        return None
+
+    title_el = (
+        item.select_one("a.title h3")
+        or item.select_one("a.title h2")
+        or item.select_one("h3")
+        or item.select_one("h2")
+    )
+    title = title_el.get_text(strip=True) if title_el else match.group(1)
+
+    year = None
+    info = item.select_one(".info p")
+    if info:
+        year_match = YEAR_RE.search(info.get_text(" ", strip=True))
+        if year_match:
+            year = year_match.group(1)
+
+    poster_el = item.select_one(".block1 img") or item.select_one("img")
+    poster = absolute_url(poster_el.get("src") if poster_el else None)
+
+    return {
+        "id": match.group(1),
+        "title": title,
+        "year": year,
+        "poster": poster,
+    }
+
+
+def parse_has_next_page(soup):
+    pagination = soup.select_one(".pagination")
+    if pagination is None:
+        return False
+    controls = pagination.select("[data-disabled][href]")
+    if not controls:
+        return False
+    disabled = (controls[-1].get("data-disabled") or "").strip().lower()
+    return disabled != "true"
+
+
+def parse_movie_list_html(html, missing_message):
     soup = BeautifulSoup(html, "html.parser")
     section = soup.select_one("#UIMovieSummary")
     if section is None:
-        raise ValueError("Search results HTML did not contain movie listings.")
+        raise ValueError(missing_message)
 
     results = []
     seen = set()
     for item in section.select("li"):
-        link = item.select_one('a[href*="/movie/watch/"]')
-        if not link or not link.get("href"):
+        movie = movie_from_item(item)
+        if not movie or movie["id"] in seen:
             continue
-        match = WATCH_ID_RE.search(link["href"])
-        if not match:
+        seen.add(movie["id"])
+        results.append(movie)
+    return results, parse_has_next_page(soup)
+
+
+def parse_featured_html(html):
+    soup = BeautifulSoup(html, "html.parser")
+    section = soup.select_one("#UIFeaturedFilms")
+    if section is None:
+        raise ValueError("Browse page did not contain featured movies.")
+
+    results = []
+    seen = set()
+    for radio in section.select('input[name="newrelease_tab"]'):
+        view = radio.find_next("div", class_="tabview")
+        if view is None:
             continue
-        movie_id = match.group(1)
-        if movie_id in seen:
+        movie = movie_from_item(view)
+        if not movie or movie["id"] in seen:
             continue
-        seen.add(movie_id)
+        seen.add(movie["id"])
+        results.append(movie)
+        if len(results) >= FEATURED_LIMIT:
+            break
 
-        title_el = item.select_one("a.title h3") or item.select_one("h3")
-        title = title_el.get_text(strip=True) if title_el else movie_id
-
-        year = None
-        info = item.select_one(".info p")
-        if info:
-            year_match = YEAR_RE.search(info.get_text(" ", strip=True))
-            if year_match:
-                year = year_match.group(1)
-
-        poster_el = item.select_one(".block1 img") or item.select_one("img")
-        poster = absolute_url(poster_el.get("src") if poster_el else None)
-
-        results.append(
-            {
-                "id": movie_id,
-                "title": title,
-                "year": year,
-                "poster": poster,
-            }
-        )
+    if not results:
+        raise ValueError("Browse page did not contain featured movies.")
     return results
 
 
@@ -137,18 +182,50 @@ def rank_results(results, query):
     )
 
 
-def fetch_search_results(query, lang):
+def fetch_html(url, params, empty_message):
     response = requests.get(
-        SEARCH_URL,
-        params={"lang": lang, "query": query},
+        url,
+        params=params,
         headers=REQUEST_HEADERS,
         timeout=20,
     )
     response.raise_for_status()
     html = response.text
     if not html.strip():
-        raise ValueError("Einthusan returned an empty search page.")
-    return rank_results(parse_search_html(html), query)
+        raise ValueError(empty_message)
+    return html
+
+
+def fetch_search_results(query, lang):
+    html = fetch_html(
+        RESULTS_URL,
+        {"lang": lang, "query": query},
+        "Einthusan returned an empty search page.",
+    )
+    results, _has_next = parse_movie_list_html(
+        html, "Search results HTML did not contain movie listings."
+    )
+    return rank_results(results, query)
+
+
+def fetch_latest_results(lang, page):
+    html = fetch_html(
+        RESULTS_URL,
+        {"lang": lang, "find": "Recent", "page": page},
+        "Einthusan returned an empty latest page.",
+    )
+    return parse_movie_list_html(
+        html, "Latest results HTML did not contain movie listings."
+    )
+
+
+def fetch_featured_results(lang):
+    html = fetch_html(
+        BROWSE_URL,
+        {"lang": lang},
+        "Einthusan returned an empty browse page.",
+    )
+    return parse_featured_html(html)
 
 
 def cdn_mp4_url(host, movie_id):
@@ -196,19 +273,73 @@ def open_cdn_stream(movie_id, range_header):
     raise requests.RequestException("Failed to reach the video CDN.")
 
 
+def parse_language():
+    lang = (request.args.get("lang") or "").strip().lower()
+    if lang not in LANGUAGES:
+        return None
+    return lang
+
+
 @app.route("/")
 def index():
     return render_template("index.html", languages=LANGUAGES)
 
 
+@app.route("/api/featured")
+def featured():
+    lang = parse_language()
+    if lang is None:
+        return jsonify({"results": [], "error": "Unsupported language."}), 400
+
+    try:
+        results = fetch_featured_results(lang)
+    except requests.RequestException:
+        return jsonify({"results": [], "error": "Failed to reach Einthusan browse."}), 502
+    except ValueError as exc:
+        return jsonify({"results": [], "error": str(exc)}), 502
+
+    return jsonify({"results": results})
+
+
+@app.route("/api/latest")
+def latest():
+    lang = parse_language()
+    page_raw = (request.args.get("page") or "1").strip()
+    try:
+        page = int(page_raw)
+    except ValueError:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    if lang is None:
+        return jsonify({"results": [], "error": "Unsupported language."}), 400
+    if page < 1:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    try:
+        results, has_next = fetch_latest_results(lang, page)
+    except requests.RequestException:
+        return jsonify({"results": [], "error": "Failed to reach Einthusan latest."}), 502
+    except ValueError as exc:
+        return jsonify({"results": [], "error": str(exc)}), 502
+
+    return jsonify(
+        {
+            "results": results,
+            "page": page,
+            "has_next": has_next,
+            "has_prev": page > 1,
+        }
+    )
+
+
 @app.route("/api/search")
 def search():
     query = (request.args.get("q") or "").strip()
-    lang = (request.args.get("lang") or "").strip().lower()
+    lang = parse_language()
 
     if not query:
         return jsonify({"results": [], "error": "Missing search query."}), 400
-    if lang not in LANGUAGES:
+    if lang is None:
         return jsonify({"results": [], "error": "Unsupported language."}), 400
 
     try:
