@@ -91,33 +91,8 @@ function movieCards(list) {
     (el) =>
       el.matches("li") &&
       !el.classList.contains("player-slot") &&
-      !el.classList.contains("pager-slot") &&
-      !el.classList.contains("player-hold")
+      !el.classList.contains("pager-slot")
   );
-}
-
-function firstRowHeight(list) {
-  const card = movieCards(list)[0];
-  if (card) {
-    return card.getBoundingClientRect().height;
-  }
-  const styles = getComputedStyle(list);
-  const columns = styles.gridTemplateColumns.split(" ").filter(Boolean).length || 7;
-  const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0;
-  const columnWidth = (list.clientWidth - gap * (columns - 1)) / columns;
-  return columnWidth * 1.5 + 72;
-}
-
-function ensurePlayerHold(list) {
-  let hold = list.querySelector(":scope > .player-hold");
-  if (!hold) {
-    hold = document.createElement("li");
-    hold.className = "player-hold";
-    hold.setAttribute("aria-hidden", "true");
-    list.prepend(hold);
-  }
-  hold.style.height = `${firstRowHeight(list)}px`;
-  return hold;
 }
 
 function placePlayerInVisibleList() {
@@ -137,16 +112,17 @@ function placePlayerInVisibleList() {
   }
   slot.append(playerPanel);
   if (cards.length === 0) {
-    if (list.classList.contains("is-loading")) {
-      ensurePlayerHold(list).after(slot);
-      return;
-    }
     parkPlayer();
     return;
   }
   const selectedBtn = list.querySelector(".result.selected");
   const origin = selectedBtn ? selectedBtn.closest("li") : cards[0];
-  lastCardInRow(cards, origin).after(slot);
+  const rowItems = [...cards];
+  const pager = list.querySelector(":scope > .pager-slot");
+  if (pager && Math.abs(pager.offsetTop - origin.offsetTop) <= 4) {
+    rowItems.push(pager);
+  }
+  lastCardInRow(rowItems, origin).after(slot);
 }
 
 function playMovie(movie) {
@@ -205,7 +181,17 @@ function createResultButton(movie) {
   return button;
 }
 
+function clearMovieCards(container) {
+  for (const item of [...container.children]) {
+    if (item.classList.contains("pager-slot") || item.classList.contains("player-slot")) {
+      continue;
+    }
+    item.remove();
+  }
+}
+
 function setListLoading(container, message) {
+  clearMovieCards(container);
   container.classList.add("is-loading");
   setStatus(message);
 }

@@ -366,6 +366,7 @@ video {
 
 .pager-slot {
   grid-column: 7;
+  grid-row: 1;
   min-width: 0;
   align-self: stretch;
 }
@@ -424,15 +425,8 @@ video {
   gap: var(--card-gap);
 }
 
-.card-grid.is-loading > li:not(.player-slot):not(.player-hold) {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.player-hold {
-  grid-column: 1 / -1;
-  list-style: none;
-  pointer-events: none;
+.card-grid.is-loading > li:not(.player-slot) {
+  display: none;
 }
 
 #home-results,
@@ -554,6 +548,7 @@ video {
 
   .pager-slot {
     grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .pager {
