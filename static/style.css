@@ -424,8 +424,15 @@ video {
   gap: var(--card-gap);
 }
 
-.card-grid.is-loading {
-  display: none;
+.card-grid.is-loading > li:not(.player-slot):not(.player-hold) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.player-hold {
+  grid-column: 1 / -1;
+  list-style: none;
+  pointer-events: none;
 }
 
 #home-results,

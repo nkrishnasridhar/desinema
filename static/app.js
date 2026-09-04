@@ -86,6 +86,40 @@ function lastCardInRow(cards, origin) {
   return last;
 }
 
+function movieCards(list) {
+  return [...list.children].filter(
+    (el) =>
+      el.matches("li") &&
+      !el.classList.contains("player-slot") &&
+      !el.classList.contains("pager-slot") &&
+      !el.classList.contains("player-hold")
+  );
+}
+
+function firstRowHeight(list) {
+  const card = movieCards(list)[0];
+  if (card) {
+    return card.getBoundingClientRect().height;
+  }
+  const styles = getComputedStyle(list);
+  const columns = styles.gridTemplateColumns.split(" ").filter(Boolean).length || 7;
+  const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0;
+  const columnWidth = (list.clientWidth - gap * (columns - 1)) / columns;
+  return columnWidth * 1.5 + 72;
+}
+
+function ensurePlayerHold(list) {
+  let hold = list.querySelector(":scope > .player-hold");
+  if (!hold) {
+    hold = document.createElement("li");
+    hold.className = "player-hold";
+    hold.setAttribute("aria-hidden", "true");
+    list.prepend(hold);
+  }
+  hold.style.height = `${firstRowHeight(list)}px`;
+  return hold;
+}
+
 function placePlayerInVisibleList() {
   if (!playerPanel.classList.contains("is-active")) {
     return;
@@ -95,23 +129,24 @@ function placePlayerInVisibleList() {
   if (!list) {
     return;
   }
-  const cards = [...list.children].filter(
-    (el) => el.matches("li") && !el.classList.contains("player-slot")
-  );
-  if (cards.length === 0) {
-    parkPlayer();
-    return;
-  }
-  const selectedBtn = list.querySelector(".result.selected");
-  const origin = selectedBtn ? selectedBtn.closest("li") : cards[0];
-  const last = lastCardInRow(cards, origin);
+  const cards = movieCards(list);
   let slot = list.querySelector(":scope > .player-slot");
   if (!slot) {
     slot = document.createElement("li");
     slot.className = "player-slot";
   }
   slot.append(playerPanel);
-  last.after(slot);
+  if (cards.length === 0) {
+    if (list.classList.contains("is-loading")) {
+      ensurePlayerHold(list).after(slot);
+      return;
+    }
+    parkPlayer();
+    return;
+  }
+  const selectedBtn = list.querySelector(".result.selected");
+  const origin = selectedBtn ? selectedBtn.closest("li") : cards[0];
+  lastCardInRow(cards, origin).after(slot);
 }
 
 function playMovie(movie) {
@@ -170,17 +205,7 @@ function createResultButton(movie) {
   return button;
 }
 
-function clearMovieCards(container) {
-  parkPlayer();
-  for (const item of [...container.children]) {
-    if (!item.classList.contains("pager-slot")) {
-      item.remove();
-    }
-  }
-}
-
 function setListLoading(container, message) {
-  clearMovieCards(container);
   container.classList.add("is-loading");
   setStatus(message);
 }
@@ -205,7 +230,7 @@ function renderList(container, movies) {
   if (currentMovie) {
     highlightSelected(currentMovie.id);
   }
-  requestAnimationFrame(placePlayerInVisibleList);
+  placePlayerInVisibleList();
 }
 
 function updateLatestPager() {
@@ -318,8 +343,6 @@ for (const button of tabButtons) {
 languageSelect.addEventListener("change", () => {
   homeLang = null;
   latestLang = null;
-  clearMovieCards(homeResultsEl);
-  clearMovieCards(latestResultsEl);
   if (currentTab === "home") {
     loadHome();
   } else if (currentTab === "latest") {
