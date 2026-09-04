@@ -21,6 +21,7 @@ const stageEl = document.querySelector(".stage");
 let currentMovie = null;
 let usingProxy = false;
 let lastResults = [];
+let lastSearchQuery = "";
 let currentTab = "home";
 let homeLang = null;
 let latestLang = null;
@@ -333,6 +334,8 @@ languageSelect.addEventListener("change", () => {
     loadHome();
   } else if (currentTab === "latest") {
     loadLatest(1);
+  } else if (currentTab === "search" && lastSearchQuery) {
+    runSearch(lastSearchQuery);
   }
 });
 
@@ -348,15 +351,14 @@ latestNextButton.addEventListener("click", () => {
   }
 });
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const query = queryInput.value.trim();
+async function runSearch(query) {
   const lang = languageSelect.value;
   if (!query) {
     return;
   }
 
   searchButton.disabled = true;
+  lastSearchQuery = query;
   lastResults = [];
   setListLoading(resultsEl, "Searching…");
   setTab("search");
@@ -388,6 +390,11 @@ form.addEventListener("submit", async (event) => {
   } finally {
     searchButton.disabled = false;
   }
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runSearch(queryInput.value.trim());
 });
 
 player.addEventListener("error", () => {

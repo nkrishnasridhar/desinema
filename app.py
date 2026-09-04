@@ -427,6 +427,14 @@ def language_matches(hits, lang):
     return [hit for hit in hits if (hit.get("original_language") or "") == code]
 
 
+def indian_language_hits(hits):
+    return [
+        hit
+        for hit in hits
+        if (hit.get("original_language") or "") in TMDB_POSTER_LANGUAGES
+    ]
+
+
 def filter_by_year(hits, year):
     try:
         year_int = int(year)
@@ -481,7 +489,11 @@ def choose_tmdb_hit(title, hits, lang, year):
     if chosen is None:
         chosen = select_tmdb_hit(title, hits, lang, None, TMDB_NO_YEAR_MIN_SCORE)
     if chosen is None and year:
-        chosen = best_scored_hit(title, filter_by_year(hits, year), TMDB_NO_YEAR_MIN_SCORE)
+        chosen = best_scored_hit(
+            title,
+            filter_by_year(indian_language_hits(hits), year),
+            TMDB_NO_YEAR_MIN_SCORE,
+        )
     return chosen
 
 
