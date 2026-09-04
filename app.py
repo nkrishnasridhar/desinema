@@ -33,7 +33,7 @@ WATCH_ID_RE = re.compile(r"/movie/watch/([A-Za-z0-9]+)/")
 MOVIE_ID_RE = re.compile(r"^[A-Za-z0-9]+$")
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
 DOUBLE_VOWEL_RE = re.compile(r"([aeiou])\1", re.IGNORECASE)
-CDN_HOSTS = ("cdn2.einthusan.io",)
+CDN_HOSTS = ("cdn2.einthusan.io", "cdn1.einthusan.io", "cdn3.einthusan.io")
 FORWARD_STREAM_HEADERS = {
     "content-type",
     "content-length",
