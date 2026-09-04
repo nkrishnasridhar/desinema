@@ -1,10 +1,16 @@
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = Flask(__name__)
 
@@ -26,6 +32,7 @@ FEATURED_LIMIT = 7
 WATCH_ID_RE = re.compile(r"/movie/watch/([A-Za-z0-9]+)/")
 MOVIE_ID_RE = re.compile(r"^[A-Za-z0-9]+$")
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
+DOUBLE_VOWEL_RE = re.compile(r"([aeiou])\1", re.IGNORECASE)
 CDN_HOSTS = ("cdn2.einthusan.io",)
 FORWARD_STREAM_HEADERS = {
     "content-type",
@@ -34,6 +41,26 @@ FORWARD_STREAM_HEADERS = {
     "accept-ranges",
 }
 _cdn_url_cache = {}
+_tmdb_poster_cache = {}
+TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+TMDB_MOVIE_IMAGES_URL = "https://api.themoviedb.org/3/movie/{movie_id}/images"
+TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+TMDB_TIMEOUT = 4
+TMDB_WORKERS = 6
+TMDB_YEAR_MATCH_MIN_SCORE = 70.0
+TMDB_NO_YEAR_MIN_SCORE = 95.0
+TMDB_ORIGINAL_LANGUAGE = {
+    "tamil": "ta",
+    "hindi": "hi",
+    "telugu": "te",
+    "malayalam": "ml",
+    "kannada": "kn",
+    "bengali": "bn",
+    "marathi": "mr",
+    "punjabi": "pa",
+}
+TMDB_READ_TOKEN = (os.environ.get("TMDB_API_READ_ACCESS_TOKEN") or "").strip()
+TMDB_API_KEY = (os.environ.get("TMDB_API_KEY") or "").strip()
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -145,6 +172,32 @@ def normalize_title(value):
     return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
 
 
+def collapse_double_vowels(value):
+    return DOUBLE_VOWEL_RE.sub(r"\1", value or "")
+
+
+def translit_key(value):
+    return collapse_double_vowels(normalize_title(value))
+
+
+def colon_prefix(title):
+    if ":" not in (title or ""):
+        return None
+    left, right = title.split(":", 1)
+    left = left.strip()
+    compact = normalize_title(left)
+    if len(compact) < 2:
+        return None
+    right_tokens = re.findall(r"[A-Za-z0-9]+", right)
+    initials = "".join(token[0] for token in right_tokens).lower() if right_tokens else ""
+    if initials and compact == initials:
+        return left
+    letters = re.sub(r"[^A-Za-z]", "", left)
+    if letters and letters.isupper() and " " not in left and 2 <= len(compact) <= 8:
+        return left
+    return None
+
+
 def title_match_score(query, title):
     """Higher is better. Prefers exact titles over near-misses like Don vs Dono."""
     q = (query or "").strip().lower()
@@ -180,6 +233,262 @@ def rank_results(results, query):
         ),
         reverse=True,
     )
+
+
+def tmdb_configured():
+    return bool(TMDB_READ_TOKEN or TMDB_API_KEY)
+
+
+def tmdb_poster_url(poster_path):
+    if not poster_path:
+        return None
+    if not str(poster_path).startswith("/"):
+        poster_path = "/" + str(poster_path)
+    return TMDB_IMAGE_BASE + poster_path
+
+
+def tmdb_auth():
+    headers = {}
+    params = {}
+    if TMDB_READ_TOKEN:
+        headers["Authorization"] = f"Bearer {TMDB_READ_TOKEN}"
+    elif TMDB_API_KEY:
+        params["api_key"] = TMDB_API_KEY
+    return headers, params
+
+
+def tmdb_get(url, extra_params=None):
+    headers, params = tmdb_auth()
+    if extra_params:
+        params = {**params, **extra_params}
+    response = requests.get(url, params=params, headers=headers, timeout=TMDB_TIMEOUT)
+    response.raise_for_status()
+    return response.json()
+
+
+def tmdb_release_year(hit):
+    date = (hit.get("release_date") or "").strip()
+    if len(date) >= 4 and date[:4].isdigit():
+        return int(date[:4])
+    return None
+
+
+def tmdb_title_score(query_title, hit):
+    titles = (hit.get("title") or "", hit.get("original_title") or "")
+    score = max(title_match_score(query_title, title) for title in titles)
+    query_key = translit_key(query_title)
+    query_norm = normalize_title(query_title)
+    if not query_key or not query_norm:
+        return score
+
+    for title in titles:
+        if translit_key(title) != query_key:
+            continue
+        ratio = SequenceMatcher(None, query_norm, normalize_title(title)).ratio()
+        if ratio >= 0.88:
+            score = max(score, 90.0)
+            break
+
+    prefix = colon_prefix(query_title)
+    prefix_norm = normalize_title(prefix) if prefix else ""
+    if prefix_norm:
+        for title in titles:
+            if prefix_norm == normalize_title(title):
+                score = max(score, 96.0)
+                break
+    return score
+
+
+def tmdb_search_queries(title):
+    queries = []
+    seen = set()
+
+    def add(query):
+        query = " ".join((query or "").split())
+        key = query.lower()
+        if query and key not in seen:
+            seen.add(key)
+            queries.append(query)
+
+    add(title)
+    add(colon_prefix(title))
+    tokens = re.findall(r"[A-Za-z0-9]+", title or "")
+    if tokens:
+        add(" ".join(tokens[:-1] + [collapse_double_vowels(tokens[-1])]))
+        add(" ".join(collapse_double_vowels(token) for token in tokens))
+    return queries
+
+
+def search_tmdb_movies(title):
+    seen_ids = set()
+    hits = []
+    for query in tmdb_search_queries(title):
+        payload = tmdb_get(
+            TMDB_SEARCH_URL,
+            {
+                "query": query,
+                "include_adult": "false",
+                "language": "en-US",
+            },
+        )
+        batch = payload.get("results") or []
+        if not batch:
+            continue
+        for hit in batch:
+            movie_id = hit.get("id")
+            if movie_id in seen_ids:
+                continue
+            seen_ids.add(movie_id)
+            hits.append(hit)
+        if hits:
+            break
+    return hits
+
+
+def fetch_tmdb_movie_posters(movie_id):
+    payload = tmdb_get(TMDB_MOVIE_IMAGES_URL.format(movie_id=movie_id))
+    return payload.get("posters") or []
+
+
+def highest_res_poster_path(posters):
+    best_path = None
+    best_pixels = -1
+    for poster in posters:
+        path = poster.get("file_path")
+        if not path:
+            continue
+        pixels = (poster.get("width") or 0) * (poster.get("height") or 0)
+        if pixels > best_pixels:
+            best_path = path
+            best_pixels = pixels
+    return best_path
+
+
+def best_poster_url(movie_id, fallback_path):
+    if movie_id:
+        try:
+            path = highest_res_poster_path(fetch_tmdb_movie_posters(movie_id))
+            if path:
+                return tmdb_poster_url(path)
+        except (requests.RequestException, ValueError, TypeError, KeyError):
+            pass
+    return tmdb_poster_url(fallback_path)
+
+
+def language_matches(hits, lang):
+    code = TMDB_ORIGINAL_LANGUAGE.get(lang)
+    if not code:
+        return []
+    return [hit for hit in hits if (hit.get("original_language") or "") == code]
+
+
+def filter_by_year(hits, year):
+    try:
+        year_int = int(year)
+    except (TypeError, ValueError):
+        return hits
+
+    exact = []
+    near = []
+    for hit in hits:
+        release_year = tmdb_release_year(hit)
+        if release_year is None:
+            continue
+        if release_year == year_int:
+            exact.append(hit)
+        elif abs(release_year - year_int) == 1:
+            near.append(hit)
+
+    if exact:
+        return exact
+    if len(near) == 1:
+        return near
+    return []
+
+
+def best_scored_hit(query_title, hits, min_score):
+    best = None
+    best_score = None
+    for hit in hits:
+        score = tmdb_title_score(query_title, hit)
+        if score < min_score:
+            continue
+        popularity = hit.get("popularity") or 0
+        if (
+            best is None
+            or score > best_score
+            or (score == best_score and popularity > (best.get("popularity") or 0))
+        ):
+            best = hit
+            best_score = score
+    return best
+
+
+def select_tmdb_hit(title, hits, lang, year, min_score):
+    candidates = language_matches(hits, lang)
+    if year:
+        candidates = filter_by_year(candidates, year)
+    return best_scored_hit(title, candidates, min_score)
+
+
+def pick_tmdb_poster(title, year, lang):
+    if not title:
+        return None
+
+    hits = search_tmdb_movies(title)
+    chosen = select_tmdb_hit(title, hits, lang, year, TMDB_YEAR_MATCH_MIN_SCORE)
+    if chosen is None:
+        chosen = select_tmdb_hit(title, hits, lang, None, TMDB_NO_YEAR_MIN_SCORE)
+    if chosen is None and year:
+        chosen = best_scored_hit(title, filter_by_year(hits, year), TMDB_NO_YEAR_MIN_SCORE)
+
+    if chosen is None:
+        return None
+    return best_poster_url(chosen.get("id"), chosen.get("poster_path"))
+
+
+def tmdb_cache_key(title, year, lang):
+    return (normalize_title(title), str(year or ""), lang)
+
+
+def lookup_tmdb_poster(title, year, lang):
+    key = tmdb_cache_key(title, year, lang)
+    if key in _tmdb_poster_cache:
+        return _tmdb_poster_cache[key]
+
+    url = None
+    try:
+        url = pick_tmdb_poster(title, year, lang)
+    except (requests.RequestException, ValueError, TypeError, KeyError):
+        url = None
+
+    _tmdb_poster_cache[key] = url
+    return url
+
+
+def apply_tmdb_poster(movie, lang):
+    einthusan = movie.get("poster")
+    tmdb_url = lookup_tmdb_poster(movie.get("title"), movie.get("year"), lang)
+    if tmdb_url:
+        movie["poster"] = tmdb_url
+        movie["poster_fallback"] = einthusan
+    else:
+        movie["poster_fallback"] = None
+    return movie
+
+
+def enrich_movie_posters(movies, lang):
+    if not movies or not tmdb_configured():
+        return movies
+
+    with ThreadPoolExecutor(max_workers=TMDB_WORKERS) as executor:
+        futures = [executor.submit(apply_tmdb_poster, movie, lang) for movie in movies]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                continue
+    return movies
 
 
 def fetch_html(url, params, empty_message):
@@ -298,6 +607,7 @@ def featured():
     except ValueError as exc:
         return jsonify({"results": [], "error": str(exc)}), 502
 
+    enrich_movie_posters(results, lang)
     return jsonify({"results": results})
 
 
@@ -322,6 +632,7 @@ def latest():
     except ValueError as exc:
         return jsonify({"results": [], "error": str(exc)}), 502
 
+    enrich_movie_posters(results, lang)
     return jsonify(
         {
             "results": results,
@@ -349,6 +660,7 @@ def search():
     except ValueError as exc:
         return jsonify({"results": [], "error": str(exc)}), 502
 
+    enrich_movie_posters(results, lang)
     return jsonify({"results": results})
 
 

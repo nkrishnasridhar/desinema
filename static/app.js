@@ -139,6 +139,19 @@ function createResultButton(movie) {
   if (movie.poster) {
     poster.src = movie.poster;
     poster.alt = "";
+    if (movie.poster_fallback && movie.poster_fallback !== movie.poster) {
+      poster.addEventListener(
+        "error",
+        () => {
+          if (poster.dataset.fallbackApplied) {
+            return;
+          }
+          poster.dataset.fallbackApplied = "1";
+          poster.src = movie.poster_fallback;
+        },
+        { once: true }
+      );
+    }
   }
   button.append(poster);
 
