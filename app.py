@@ -60,6 +60,7 @@ TMDB_ORIGINAL_LANGUAGE = {
     "marathi": "mr",
     "punjabi": "pa",
 }
+TMDB_POSTER_LANGUAGES = tuple(TMDB_ORIGINAL_LANGUAGE.values())
 TMDB_READ_TOKEN = (os.environ.get("TMDB_API_READ_ACCESS_TOKEN") or "").strip()
 TMDB_API_KEY = (os.environ.get("TMDB_API_KEY") or "").strip()
 REQUEST_HEADERS = {
@@ -370,28 +371,48 @@ def discover_tmdb_movies(lang, year=None, any_language=False):
 
 
 def fetch_tmdb_movie_posters(movie_id):
-    payload = tmdb_get(TMDB_MOVIE_IMAGES_URL.format(movie_id=movie_id))
+    payload = tmdb_get(
+        TMDB_MOVIE_IMAGES_URL.format(movie_id=movie_id),
+        {"include_image_language": ",".join(("null",) + TMDB_POSTER_LANGUAGES)},
+    )
     return payload.get("posters") or []
 
 
-def highest_res_poster_path(posters):
-    best_path = None
-    best_pixels = -1
+def is_two_by_three(width, height):
+    try:
+        width = int(width)
+        height = int(height)
+    except (TypeError, ValueError):
+        return False
+    if width <= 0 or height <= 0:
+        return False
+    return abs((width / height) - (2 / 3)) <= 0.02
+
+
+def is_usable_poster(poster, require_language):
+    path = poster.get("file_path")
+    if not path or not is_two_by_three(poster.get("width"), poster.get("height")):
+        return False
+    iso_code = poster.get("iso_639_1")
+    if require_language:
+        return iso_code in TMDB_POSTER_LANGUAGES
+    return not iso_code
+
+
+def first_two_by_three_poster_path(posters):
     for poster in posters:
-        path = poster.get("file_path")
-        if not path:
-            continue
-        pixels = (poster.get("width") or 0) * (poster.get("height") or 0)
-        if pixels > best_pixels:
-            best_path = path
-            best_pixels = pixels
-    return best_path
+        if is_usable_poster(poster, require_language=True):
+            return poster.get("file_path")
+    for poster in posters:
+        if is_usable_poster(poster, require_language=False):
+            return poster.get("file_path")
+    return None
 
 
 def best_poster_url(movie_id, fallback_path):
     if movie_id:
         try:
-            path = highest_res_poster_path(fetch_tmdb_movie_posters(movie_id))
+            path = first_two_by_three_poster_path(fetch_tmdb_movie_posters(movie_id))
             if path:
                 return tmdb_poster_url(path)
         except (requests.RequestException, ValueError, TypeError, KeyError):
