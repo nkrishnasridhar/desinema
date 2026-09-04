@@ -424,6 +424,10 @@ video {
   gap: var(--card-gap);
 }
 
+.card-grid.is-loading {
+  display: none;
+}
+
 #home-results,
 #latest-results {
   grid-template-columns: repeat(7, minmax(0, 1fr));

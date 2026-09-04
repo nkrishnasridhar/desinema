@@ -170,6 +170,25 @@ function createResultButton(movie) {
   return button;
 }
 
+function clearMovieCards(container) {
+  parkPlayer();
+  for (const item of [...container.children]) {
+    if (!item.classList.contains("pager-slot")) {
+      item.remove();
+    }
+  }
+}
+
+function setListLoading(container, message) {
+  clearMovieCards(container);
+  container.classList.add("is-loading");
+  setStatus(message);
+}
+
+function finishListLoading(container) {
+  container.classList.remove("is-loading");
+}
+
 function renderList(container, movies) {
   parkPlayer();
   const pager = container.querySelector(".pager-slot");
@@ -182,6 +201,7 @@ function renderList(container, movies) {
   if (pager) {
     container.append(pager);
   }
+  finishListLoading(container);
   if (currentMovie) {
     highlightSelected(currentMovie.id);
   }
@@ -204,23 +224,24 @@ async function readJson(response) {
 
 async function loadHome() {
   const lang = languageSelect.value;
-  if (homeLang === lang && homeResultsEl.children.length > 0) {
+  if (homeLang === lang && homeResultsEl.querySelector(".result")) {
     return;
   }
 
-  setStatus("Loading featured movies…");
+  setListLoading(homeResultsEl, "Loading featured movies…");
   try {
     const params = new URLSearchParams({ lang });
     const response = await fetch(`/api/featured?${params}`);
     const data = await readJson(response);
     if (!response.ok) {
+      finishListLoading(homeResultsEl);
       setStatus(data.error || "Failed to load featured movies.", true);
       return;
     }
     const results = data.results || [];
     if (results.length === 0) {
-      homeResultsEl.replaceChildren();
       homeLang = lang;
+      finishListLoading(homeResultsEl);
       setStatus("No featured movies found.", true);
       return;
     }
@@ -228,13 +249,14 @@ async function loadHome() {
     homeLang = lang;
     setStatus("");
   } catch {
+    finishListLoading(homeResultsEl);
     setStatus("Could not reach the server.", true);
   }
 }
 
 async function loadLatest(page) {
   const lang = languageSelect.value;
-  setStatus("Loading latest movies…");
+  setListLoading(latestResultsEl, "Loading latest movies…");
   latestPrevButton.disabled = true;
   latestNextButton.disabled = true;
 
@@ -243,6 +265,7 @@ async function loadLatest(page) {
     const response = await fetch(`/api/latest?${params}`);
     const data = await readJson(response);
     if (!response.ok) {
+      finishListLoading(latestResultsEl);
       setStatus(data.error || "Failed to load latest movies.", true);
       updateLatestPager();
       return;
@@ -259,6 +282,7 @@ async function loadLatest(page) {
     }
     setStatus("");
   } catch {
+    finishListLoading(latestResultsEl);
     setStatus("Could not reach the server.", true);
     updateLatestPager();
   }
@@ -292,8 +316,11 @@ for (const button of tabButtons) {
 }
 
 languageSelect.addEventListener("change", () => {
+  homeLang = null;
+  latestLang = null;
+  clearMovieCards(homeResultsEl);
+  clearMovieCards(latestResultsEl);
   if (currentTab === "home") {
-    homeLang = null;
     loadHome();
   } else if (currentTab === "latest") {
     loadLatest(1);
@@ -321,10 +348,9 @@ form.addEventListener("submit", async (event) => {
   }
 
   searchButton.disabled = true;
-  setTab("search");
   lastResults = [];
-  resultsEl.replaceChildren();
-  setStatus("Searching…");
+  setListLoading(resultsEl, "Searching…");
+  setTab("search");
 
   try {
     const params = new URLSearchParams({ q: query, lang });
@@ -332,6 +358,7 @@ form.addEventListener("submit", async (event) => {
     const data = await readJson(response);
 
     if (!response.ok) {
+      finishListLoading(resultsEl);
       setStatus(data.error || "Search failed.", true);
       return;
     }
@@ -339,13 +366,15 @@ form.addEventListener("submit", async (event) => {
     const results = data.results || [];
     lastResults = results;
     if (results.length === 0) {
+      finishListLoading(resultsEl);
       setStatus("No movies found.", true);
       return;
     }
 
-    setStatus("");
     renderList(resultsEl, results);
+    setStatus("");
   } catch {
+    finishListLoading(resultsEl);
     setStatus("Could not reach the search server.", true);
   } finally {
     searchButton.disabled = false;
