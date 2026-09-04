@@ -43,6 +43,7 @@ FORWARD_STREAM_HEADERS = {
 _cdn_url_cache = {}
 _tmdb_poster_cache = {}
 TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+TMDB_DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 TMDB_MOVIE_IMAGES_URL = "https://api.themoviedb.org/3/movie/{movie_id}/images"
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 TMDB_TIMEOUT = 4
@@ -329,6 +330,7 @@ def search_tmdb_movies(title):
                 "query": query,
                 "include_adult": "false",
                 "language": "en-US",
+                "region": "IN",
             },
         )
         batch = payload.get("results") or []
@@ -343,6 +345,28 @@ def search_tmdb_movies(title):
         if hits:
             break
     return hits
+
+
+def discover_tmdb_movies(lang, year=None, any_language=False):
+    params = {
+        "include_adult": "false",
+        "include_video": "false",
+        "language": "en-US",
+        "page": 1,
+        "region": "IN",
+        "sort_by": "popularity.desc",
+        "with_origin_country": "IN",
+    }
+    language_code = TMDB_ORIGINAL_LANGUAGE.get(lang)
+    if language_code and not any_language:
+        params["with_original_language"] = language_code
+    if year:
+        try:
+            params["primary_release_year"] = int(year)
+        except (TypeError, ValueError):
+            pass
+    payload = tmdb_get(TMDB_DISCOVER_URL, params)
+    return payload.get("results") or []
 
 
 def fetch_tmdb_movie_posters(movie_id):
@@ -431,16 +455,26 @@ def select_tmdb_hit(title, hits, lang, year, min_score):
     return best_scored_hit(title, candidates, min_score)
 
 
-def pick_tmdb_poster(title, year, lang):
-    if not title:
-        return None
-
-    hits = search_tmdb_movies(title)
+def choose_tmdb_hit(title, hits, lang, year):
     chosen = select_tmdb_hit(title, hits, lang, year, TMDB_YEAR_MATCH_MIN_SCORE)
     if chosen is None:
         chosen = select_tmdb_hit(title, hits, lang, None, TMDB_NO_YEAR_MIN_SCORE)
     if chosen is None and year:
         chosen = best_scored_hit(title, filter_by_year(hits, year), TMDB_NO_YEAR_MIN_SCORE)
+    return chosen
+
+
+def pick_tmdb_poster(title, year, lang):
+    if not title:
+        return None
+
+    chosen = choose_tmdb_hit(title, search_tmdb_movies(title), lang, year)
+    if chosen is None:
+        chosen = choose_tmdb_hit(title, discover_tmdb_movies(lang, year), lang, year)
+    if chosen is None and year:
+        chosen = choose_tmdb_hit(
+            title, discover_tmdb_movies(lang, year, any_language=True), lang, year
+        )
 
     if chosen is None:
         return None
