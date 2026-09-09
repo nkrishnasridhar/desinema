@@ -66,7 +66,22 @@ function startPlayback(src) {
   }
 }
 
+function isPlayerFullscreen() {
+  if (player.webkitDisplayingFullscreen || player.webkitPresentationMode === "fullscreen") {
+    return true;
+  }
+  const full =
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement;
+  return Boolean(full && (full === player || player.contains(full) || full.contains(player)));
+}
+
 function parkPlayer() {
+  if (isPlayerFullscreen()) {
+    return;
+  }
   const slot = playerPanel.closest(".player-slot");
   if (playerPanel.parentElement !== stageEl) {
     stageEl.prepend(playerPanel);
@@ -97,7 +112,7 @@ function movieCards(list) {
 }
 
 function placePlayerInVisibleList() {
-  if (!playerPanel.classList.contains("is-active")) {
+  if (!playerPanel.classList.contains("is-active") || isPlayerFullscreen()) {
     return;
   }
   const panel = document.querySelector(".browse-panel:not([hidden])");
@@ -111,7 +126,9 @@ function placePlayerInVisibleList() {
     slot = document.createElement("li");
     slot.className = "player-slot";
   }
-  slot.append(playerPanel);
+  if (playerPanel.parentElement !== slot) {
+    slot.append(playerPanel);
+  }
   if (cards.length === 0) {
     parkPlayer();
     return;
@@ -123,13 +140,17 @@ function placePlayerInVisibleList() {
   if (pager && Math.abs(pager.offsetTop - origin.offsetTop) <= 4) {
     rowItems.push(pager);
   }
-  lastCardInRow(rowItems, origin).after(slot);
+  const anchor = lastCardInRow(rowItems, origin);
+  if (slot.previousElementSibling !== anchor) {
+    anchor.after(slot);
+  }
 }
 
 function playMovie(movie) {
   currentMovie = movie;
   usingProxy = false;
   document.body.classList.add("is-playing");
+  playerPanel.classList.remove("animation-done");
   playerPanel.classList.add("is-active");
   nowPlaying.textContent = movieLabel(movie);
   highlightSelected(movie.id);
@@ -411,6 +432,13 @@ player.addEventListener("error", () => {
 
 window.addEventListener("resize", () => {
   requestAnimationFrame(placePlayerInVisibleList);
+});
+
+playerPanel.addEventListener("animationend", (event) => {
+  if (event.target !== playerPanel || event.animationName !== "screen-rise") {
+    return;
+  }
+  playerPanel.classList.add("animation-done");
 });
 
 updateLatestPager();
