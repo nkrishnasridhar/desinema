@@ -24,6 +24,14 @@ The app still works without these values; posters stay on Einthusan.
 
 Open http://127.0.0.1:5000
 
+On Windows, after creating `.venv` and installing the requirements once, you can start the app with:
+
+```cmd
+start-desinema.bat
+```
+
+This activates the local virtual environment, starts Flask, and opens the app in your browser.
+
 ## Disclaimer
 
 DeSinema is an independent personal project and is not affiliated with, endorsed by, or associated with Einthusan or TMDB.
