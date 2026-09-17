@@ -75,12 +75,35 @@ REQUEST_HEADERS = {
 }
 
 
+RATING_KEYS = ("action", "comedy", "romance", "storyline", "performance")
+
+
 def absolute_url(src):
     if not src:
         return None
     if src.startswith("//"):
         return "https:" + src
     return urljoin(EINTHUSAN_ORIGIN + "/", src)
+
+
+def parse_average_ratings(item):
+    ratings = {}
+    for row in item.select("ul.average-rating li"):
+        label_el = row.select_one("label")
+        if label_el is None:
+            continue
+        key = label_el.get_text(strip=True).lower()
+        if key not in RATING_KEYS:
+            continue
+        value_el = row.select_one("p")
+        if value_el is None:
+            continue
+        raw = (value_el.get("data-value") or value_el.get_text(strip=True) or "").strip()
+        try:
+            ratings[key] = round(float(raw), 1)
+        except ValueError:
+            continue
+    return ratings or None
 
 
 def movie_from_item(item):
@@ -109,12 +132,16 @@ def movie_from_item(item):
     poster_el = item.select_one(".block1 img") or item.select_one("img")
     poster = absolute_url(poster_el.get("src") if poster_el else None)
 
-    return {
+    movie = {
         "id": match.group(1),
         "title": title,
         "year": year,
         "poster": poster,
     }
+    ratings = parse_average_ratings(item)
+    if ratings:
+        movie["ratings"] = ratings
+    return movie
 
 
 def parse_has_next_page(soup):

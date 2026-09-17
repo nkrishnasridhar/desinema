@@ -36,8 +36,56 @@ function proxyUrl(movieId) {
   return `/api/stream/${encodeURIComponent(movieId)}`;
 }
 
+const RATING_LABELS = [
+  ["action", "Action"],
+  ["comedy", "Comedy"],
+  ["romance", "Romance"],
+  ["storyline", "Storyline"],
+  ["performance", "Performance"],
+];
+
 function movieLabel(movie) {
   return movie.year ? `${movie.title} (${movie.year})` : movie.title;
+}
+
+function formatScore(value) {
+  return Number(value).toFixed(1);
+}
+
+function ratingFillPercent(value) {
+  const score = Math.min(5, Math.max(0, Number(value) || 0));
+  return `${(score / 5) * 100}%`;
+}
+
+function createRatingsBlock(ratings, className = "movie-ratings") {
+  if (!ratings) {
+    return null;
+  }
+  const list = document.createElement("span");
+  list.className = className;
+  for (const [key, label] of RATING_LABELS) {
+    if (ratings[key] == null) {
+      continue;
+    }
+    const row = document.createElement("span");
+    row.className = "rating-row";
+    const name = document.createElement("span");
+    name.className = "rating-label";
+    name.textContent = label;
+    const bar = document.createElement("span");
+    bar.className = "rating-bar";
+    bar.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("span");
+    fill.className = "rating-bar-fill";
+    fill.style.width = ratingFillPercent(ratings[key]);
+    bar.append(fill);
+    const score = document.createElement("span");
+    score.className = "rating-score";
+    score.textContent = formatScore(ratings[key]);
+    row.append(name, bar, score);
+    list.append(row);
+  }
+  return list.childElementCount ? list : null;
 }
 
 function setStatus(message, isError = false) {
@@ -152,7 +200,15 @@ function playMovie(movie) {
   document.body.classList.add("is-playing");
   playerPanel.classList.remove("animation-done");
   playerPanel.classList.add("is-active");
-  nowPlaying.textContent = movieLabel(movie);
+  nowPlaying.replaceChildren();
+  const titleLine = document.createElement("span");
+  titleLine.className = "now-playing-title";
+  titleLine.textContent = movieLabel(movie);
+  nowPlaying.append(titleLine);
+  const ratingsBlock = createRatingsBlock(movie.ratings, "movie-ratings now-playing-ratings");
+  if (ratingsBlock) {
+    nowPlaying.append(ratingsBlock);
+  }
   highlightSelected(movie.id);
   startPlayback(cdnUrl(movie.id));
   requestAnimationFrame(() => {
@@ -197,6 +253,10 @@ function createResultButton(movie) {
     const year = document.createElement("span");
     year.textContent = movie.year;
     meta.append(year);
+  }
+  const ratingsBlock = createRatingsBlock(movie.ratings);
+  if (ratingsBlock) {
+    meta.append(ratingsBlock);
   }
   button.append(meta);
   button.addEventListener("click", () => playMovie(movie));

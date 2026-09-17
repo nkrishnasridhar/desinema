@@ -353,6 +353,86 @@ button:focus-visible {
   letter-spacing: 0.01em;
   color: var(--gold-soft);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.now-playing-ratings {
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  width: min(100%, 18rem);
+  margin-top: 0.15rem;
+}
+
+.movie-ratings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  margin-top: 0.2rem;
+}
+
+.movie-ratings .rating-row {
+  display: grid;
+  grid-template-columns: max-content minmax(1.6rem, 1fr) 1.7em;
+  align-items: center;
+  gap: 0.28rem;
+  line-height: 1.2;
+}
+
+.movie-ratings .rating-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.movie-ratings .rating-bar {
+  display: block;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.movie-ratings .rating-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a87820, var(--gold));
+  min-width: 0;
+}
+
+.movie-ratings .rating-score {
+  color: var(--gold-soft);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.card-grid .movie-ratings .rating-label,
+.card-grid .movie-ratings .rating-score {
+  font-size: 0.68rem;
+}
+
+.result-meta .movie-ratings .rating-score,
+.now-playing-ratings .rating-score {
+  color: var(--gold-soft);
+}
+
+.now-playing-ratings .rating-row {
+  grid-template-columns: max-content minmax(2rem, 1fr) 1.8em;
+}
+
+.now-playing-ratings .rating-label,
+.now-playing-ratings .rating-score {
+  font-size: 0.74rem;
+}
+
+.now-playing-ratings .rating-bar {
+  height: 0.34rem;
 }
 
 video {
@@ -548,6 +628,21 @@ video {
 
   .card-grid .result-meta strong {
     font-size: 1.02rem;
+  }
+
+  .card-grid .movie-ratings .rating-label,
+  .card-grid .movie-ratings .rating-score {
+    font-size: 0.64rem;
+  }
+
+  .card-grid .movie-ratings .rating-row {
+    grid-template-columns: max-content minmax(1.25rem, 1fr) 1.55em;
+    gap: 0.22rem;
+  }
+
+  .now-playing-ratings {
+    width: min(100%, 16rem);
+    padding: 0 0.5rem;
   }
 
   .pager-slot {
