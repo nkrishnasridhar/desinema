@@ -368,18 +368,16 @@ button:focus-visible {
 }
 
 .movie-ratings {
-  display: flex;
-  flex-direction: column;
-  gap: 0.16rem;
+  display: grid;
+  grid-template-columns: max-content minmax(1.6rem, 1fr) 1.7em;
+  column-gap: 0.28rem;
+  row-gap: 0.16rem;
+  align-items: center;
   margin-top: 0.2rem;
 }
 
 .movie-ratings .rating-row {
-  display: grid;
-  grid-template-columns: max-content minmax(1.6rem, 1fr) 1.7em;
-  align-items: center;
-  gap: 0.28rem;
-  line-height: 1.2;
+  display: contents;
 }
 
 .movie-ratings .rating-label {
@@ -387,6 +385,7 @@ button:focus-visible {
   font-size: 0.68rem;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .movie-ratings .rating-bar {
@@ -422,7 +421,7 @@ button:focus-visible {
   color: var(--gold-soft);
 }
 
-.now-playing-ratings .rating-row {
+.now-playing-ratings {
   grid-template-columns: max-content minmax(2rem, 1fr) 1.8em;
 }
 
@@ -635,9 +634,9 @@ video {
     font-size: 0.64rem;
   }
 
-  .card-grid .movie-ratings .rating-row {
+  .card-grid .movie-ratings {
     grid-template-columns: max-content minmax(1.25rem, 1fr) 1.55em;
-    gap: 0.22rem;
+    column-gap: 0.22rem;
   }
 
   .now-playing-ratings {
