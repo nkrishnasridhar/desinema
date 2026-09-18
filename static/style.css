@@ -114,6 +114,42 @@ body.is-playing .curtain-right {
   padding: 2rem 1.25rem 4.5rem;
 }
 
+.tmdb-attrib {
+  margin-top: 2.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(224, 177, 74, 0.12);
+}
+
+.tmdb-attrib-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 100%;
+  text-decoration: none;
+  color: var(--muted);
+  opacity: 0.72;
+  transition: opacity 0.2s ease;
+}
+
+.tmdb-attrib-link:hover {
+  opacity: 1;
+  color: var(--cream);
+}
+
+.tmdb-attrib-logo {
+  display: block;
+  width: 5.5rem;
+  height: auto;
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+
+.tmdb-attrib-link span {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
 .marquee {
   text-align: center;
   margin-bottom: 1.75rem;

@@ -247,6 +247,23 @@
           </section>
         </div>
       </div>
+      <footer class="tmdb-attrib">
+        <a
+          class="tmdb-attrib-link"
+          href="https://www.themoviedb.org/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            class="tmdb-attrib-logo"
+            src="{{ url_for('static', filename='tmdb-logo.svg') }}"
+            alt="The Movie Database"
+            width="100"
+            height="13"
+          />
+          <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+        </a>
+      </footer>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>
