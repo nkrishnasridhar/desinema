@@ -14,7 +14,12 @@ const searchPanel = document.getElementById("search-panel");
 const homeResultsEl = document.getElementById("home-results");
 const latestResultsEl = document.getElementById("latest-results");
 const topResultsEl = document.getElementById("top-results");
-const topPeriodsEl = document.getElementById("top-periods");
+const topCustomLastForm = document.getElementById("top-custom-last");
+const topCustomCalendarForm = document.getElementById("top-custom-calendar");
+const topLastNInput = document.getElementById("top-last-n");
+const topLastUnitSelect = document.getElementById("top-last-unit");
+const topMonthSelect = document.getElementById("top-month");
+const topYearInput = document.getElementById("top-year");
 const latestPrevButton = document.getElementById("latest-prev");
 const latestNextButton = document.getElementById("latest-next");
 const latestPageLabel = document.getElementById("latest-page-label");
@@ -22,6 +27,7 @@ const topPrevButton = document.getElementById("top-prev");
 const topNextButton = document.getElementById("top-next");
 const topPageLabel = document.getElementById("top-page-label");
 const topMetricButtons = document.querySelectorAll(".top-metric");
+const topPresetButtons = document.querySelectorAll(".top-preset");
 const tabButtons = document.querySelectorAll(".tab");
 const stageEl = document.querySelector(".stage");
 
@@ -40,26 +46,6 @@ let topHasNext = false;
 let topPtype = "view";
 let topTp = "alltime";
 
-const RELATIVE_PERIODS = [
-  ["alltime", "All Time"],
-  ["td", "Today"],
-  ["yd", "Yesterday"],
-  ["tw", "This Week"],
-  ["tm", "This Month"],
-  ["ty", "This Year"],
-  ["lw", "Last Week"],
-  ["lm", "Last Month"],
-  ["ly", "Last Year"],
-  ["l10d", "Last 10 Days"],
-  ["l30d", "Last 30 Days"],
-  ["l2m", "Last 2 Months"],
-  ["l3m", "Last 3 Months"],
-  ["l4m", "Last 4 Months"],
-  ["l6m", "Last 6 Months"],
-  ["l12m", "Last 12 Months"],
-  ["l2y", "Last 2 Years"],
-];
-
 const MONTH_SHORT = [
   "Jan",
   "Feb",
@@ -74,22 +60,35 @@ const MONTH_SHORT = [
   "Nov",
   "Dec",
 ];
+const LAST_N_TP_RE = /^l([1-9]\d*)([dmy])$/;
+const MONTH_TP_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{4})$/;
+const NAMED_PRESETS = new Set([
+  "alltime",
+  "td",
+  "yd",
+  "tw",
+  "tm",
+  "ty",
+  "lw",
+  "lm",
+  "ly",
+]);
 
-function calendarPeriods(count = 24) {
-  const periods = [];
+function initTopPeriodDefaults() {
   const now = new Date();
-  let year = now.getFullYear();
-  let month = now.getMonth();
-  for (let i = 0; i < count; i += 1) {
-    const code = `${MONTH_SHORT[month]}-${year}`;
-    periods.push([code, code.replace("-", " ")]);
-    month -= 1;
-    if (month < 0) {
-      month = 11;
-      year -= 1;
-    }
-  }
-  return periods.reverse();
+  topMonthSelect.value = MONTH_SHORT[now.getMonth()];
+  topYearInput.value = String(now.getFullYear());
+  topYearInput.max = String(now.getFullYear() + 1);
+  topLastNInput.value = "30";
+  topLastUnitSelect.value = "d";
+}
+
+function tpFromLastN(n, unit) {
+  return `l${n}${unit}`;
+}
+
+function tpFromCalendar(month, year) {
+  return `${month}-${year}`;
 }
 
 function cdnUrl(movieId) {
@@ -385,35 +384,59 @@ function syncTopMetricButtons() {
   }
 }
 
-function syncTopPeriodButtons() {
-  for (const button of topPeriodsEl.querySelectorAll(".top-period")) {
-    const active = button.dataset.tp === topTp;
+function syncTopPeriodUi() {
+  const lastMatch = LAST_N_TP_RE.exec(topTp);
+  const monthMatch = MONTH_TP_RE.exec(topTp);
+  const isNamed = NAMED_PRESETS.has(topTp);
+
+  for (const button of topPresetButtons) {
+    const active = isNamed && button.dataset.tp === topTp;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", active ? "true" : "false");
   }
+
+  topCustomLastForm.classList.toggle("is-active", Boolean(lastMatch));
+  topCustomCalendarForm.classList.toggle("is-active", Boolean(monthMatch));
+
+  if (lastMatch) {
+    topLastNInput.value = lastMatch[1];
+    topLastUnitSelect.value = lastMatch[2];
+  }
+  if (monthMatch) {
+    topMonthSelect.value = monthMatch[1];
+    topYearInput.value = monthMatch[2];
+  }
 }
 
-function buildTopPeriods() {
-  topPeriodsEl.replaceChildren();
-  const periods = [...RELATIVE_PERIODS, ...calendarPeriods(24)];
-  for (const [code, label] of periods) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "top-period";
-    button.dataset.tp = code;
-    button.textContent = label;
-    button.setAttribute("aria-pressed", "false");
-    button.addEventListener("click", () => {
-      if (topTp === code) {
-        return;
-      }
-      topTp = code;
-      syncTopPeriodButtons();
-      loadTop(1);
-    });
-    topPeriodsEl.append(button);
+function applyTopTp(nextTp) {
+  if (!nextTp || topTp === nextTp) {
+    syncTopPeriodUi();
+    return;
   }
-  syncTopPeriodButtons();
+  topTp = nextTp;
+  syncTopPeriodUi();
+  loadTop(1);
+}
+
+function applyLastCustom() {
+  const n = Number.parseInt(topLastNInput.value, 10);
+  const unit = topLastUnitSelect.value;
+  if (!Number.isInteger(n) || n < 1 || !["d", "m", "y"].includes(unit)) {
+    setStatus("Enter a valid Last period (number ≥ 1).", true);
+    return;
+  }
+  applyTopTp(tpFromLastN(n, unit));
+}
+
+function applyCalendarCustom() {
+  const month = topMonthSelect.value;
+  const year = Number.parseInt(topYearInput.value, 10);
+  const maxYear = new Date().getFullYear() + 1;
+  if (!MONTH_SHORT.includes(month) || !Number.isInteger(year) || year < 1990 || year > maxYear) {
+    setStatus(`Enter a year between 1990 and ${maxYear}.`, true);
+    return;
+  }
+  applyTopTp(tpFromCalendar(month, year));
 }
 
 async function readJson(response) {
@@ -521,7 +544,7 @@ async function loadTop(page) {
     }
     if (data.tp) {
       topTp = data.tp;
-      syncTopPeriodButtons();
+      syncTopPeriodUi();
     }
     renderList(topResultsEl, results);
     updateTopPager();
@@ -622,7 +645,24 @@ for (const button of topMetricButtons) {
   });
 }
 
-buildTopPeriods();
+for (const button of topPresetButtons) {
+  button.addEventListener("click", () => {
+    applyTopTp(button.dataset.tp);
+  });
+}
+
+topCustomLastForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  applyLastCustom();
+});
+
+topCustomCalendarForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  applyCalendarCustom();
+});
+
+initTopPeriodDefaults();
+syncTopPeriodUi();
 
 async function runSearch(query) {
   const lang = languageSelect.value;

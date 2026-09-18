@@ -77,7 +77,7 @@ REQUEST_HEADERS = {
 
 RATING_KEYS = ("action", "comedy", "romance", "storyline", "performance")
 PTYPES = ("view", "comment", "rating")
-RELATIVE_TP = (
+NAMED_TP = (
     "alltime",
     "td",
     "yd",
@@ -87,15 +87,8 @@ RELATIVE_TP = (
     "lw",
     "lm",
     "ly",
-    "l10d",
-    "l30d",
-    "l2m",
-    "l3m",
-    "l4m",
-    "l6m",
-    "l12m",
-    "l2y",
 )
+LAST_N_TP_RE = re.compile(r"^l([1-9]\d*)([dmy])$")
 MONTH_TP_RE = re.compile(
     r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}$"
 )
@@ -657,9 +650,13 @@ def fetch_popularity_results(lang, ptype, tp, page):
         },
         "Einthusan returned an empty popularity page.",
     )
-    return parse_movie_list_html(
-        html, "Popularity results HTML did not contain movie listings."
-    )
+    try:
+        return parse_movie_list_html(
+            html, "Popularity results HTML did not contain movie listings."
+        )
+    except ValueError:
+        # Unsupported/empty tp values (e.g. arbitrary l7d) often omit the list section.
+        return [], False
 
 
 def fetch_featured_results(lang):
@@ -732,7 +729,7 @@ def parse_ptype():
 
 def parse_tp():
     tp = (request.args.get("tp") or "alltime").strip()
-    if tp in RELATIVE_TP or MONTH_TP_RE.fullmatch(tp):
+    if tp in NAMED_TP or LAST_N_TP_RE.fullmatch(tp) or MONTH_TP_RE.fullmatch(tp):
         return tp
     return None
 

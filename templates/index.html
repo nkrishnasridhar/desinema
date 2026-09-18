@@ -156,12 +156,74 @@
                   Rates
                 </button>
               </div>
-              <div
-                id="top-periods"
-                class="top-periods"
-                role="group"
-                aria-label="Time period"
-              ></div>
+              <div class="top-periods" aria-label="Time period">
+                <div
+                  id="top-presets"
+                  class="top-presets"
+                  role="group"
+                  aria-label="Quick periods"
+                >
+                  <button type="button" class="top-preset is-active" data-tp="alltime" aria-pressed="true">All Time</button>
+                  <button type="button" class="top-preset" data-tp="td" aria-pressed="false">Today</button>
+                  <button type="button" class="top-preset" data-tp="yd" aria-pressed="false">Yesterday</button>
+                  <button type="button" class="top-preset" data-tp="tw" aria-pressed="false">This Week</button>
+                  <button type="button" class="top-preset" data-tp="tm" aria-pressed="false">This Month</button>
+                  <button type="button" class="top-preset" data-tp="ty" aria-pressed="false">This Year</button>
+                  <button type="button" class="top-preset" data-tp="lw" aria-pressed="false">Last Week</button>
+                  <button type="button" class="top-preset" data-tp="lm" aria-pressed="false">Last Month</button>
+                  <button type="button" class="top-preset" data-tp="ly" aria-pressed="false">Last Year</button>
+                </div>
+                <div class="top-custom-rows">
+                  <form id="top-custom-last" class="top-custom top-custom-last" autocomplete="off">
+                    <span class="top-custom-label">Last</span>
+                    <label class="visually-hidden" for="top-last-n">Number</label>
+                    <input
+                      id="top-last-n"
+                      class="top-last-n"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value="30"
+                      inputmode="numeric"
+                    />
+                    <label class="visually-hidden" for="top-last-unit">Unit</label>
+                    <select id="top-last-unit" class="top-last-unit" aria-label="Last period unit">
+                      <option value="d" selected>Days</option>
+                      <option value="m">Months</option>
+                      <option value="y">Years</option>
+                    </select>
+                    <button type="submit" class="top-apply">Apply</button>
+                  </form>
+                  <form id="top-custom-calendar" class="top-custom top-custom-calendar" autocomplete="off">
+                    <label class="visually-hidden" for="top-month">Month</label>
+                    <select id="top-month" class="top-month" aria-label="Month">
+                      <option value="Jan">Jan</option>
+                      <option value="Feb">Feb</option>
+                      <option value="Mar">Mar</option>
+                      <option value="Apr">Apr</option>
+                      <option value="May">May</option>
+                      <option value="Jun">Jun</option>
+                      <option value="Jul">Jul</option>
+                      <option value="Aug">Aug</option>
+                      <option value="Sep">Sep</option>
+                      <option value="Oct">Oct</option>
+                      <option value="Nov">Nov</option>
+                      <option value="Dec">Dec</option>
+                    </select>
+                    <label class="visually-hidden" for="top-year">Year</label>
+                    <input
+                      id="top-year"
+                      class="top-year"
+                      type="number"
+                      min="1990"
+                      step="1"
+                      inputmode="numeric"
+                      aria-label="Year"
+                    />
+                    <button type="submit" class="top-apply">Apply</button>
+                  </form>
+                </div>
+              </div>
             </div>
             <ul id="top-results" class="results card-grid">
               <li class="pager-slot">
