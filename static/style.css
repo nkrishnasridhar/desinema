@@ -706,14 +706,15 @@ button:focus-visible {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .desinema-player.video-js.vjs-has-started.vjs-playing:not(:hover) .vjs-control-bar {
+  .desinema-player.video-js.vjs-has-started.vjs-playing:not(:hover) .vjs-control-bar,
+  .desinema-player.video-js.vjs-has-started.vjs-playing.vjs-user-inactive .vjs-control-bar {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
   }
 
-  .desinema-player.video-js.vjs-has-started.vjs-playing:hover .vjs-control-bar {
+  .desinema-player.video-js.vjs-has-started.vjs-playing.vjs-user-active:hover .vjs-control-bar {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
