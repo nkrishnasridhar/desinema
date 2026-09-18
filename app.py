@@ -872,6 +872,8 @@ def stream_movie(movie_id):
         response_headers["Accept-Ranges"] = "bytes"
     if "content-type" not in lower_keys:
         response_headers["Content-Type"] = "video/mp4"
+    if request.args.get("download") == "1":
+        response_headers["Content-Disposition"] = f'attachment; filename="D{movie_id}.mp4"'
 
     def generate():
         try:

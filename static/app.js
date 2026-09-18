@@ -6,6 +6,32 @@ const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const playerPanel = document.getElementById("player-panel");
 const nowPlaying = document.getElementById("now-playing");
+
+const VjsButton = videojs.getComponent("Button");
+
+class DownloadButton extends VjsButton {
+  constructor(player, options) {
+    super(player, options);
+    this.addClass("vjs-download-control");
+    this.controlText("Download");
+  }
+
+  handleClick() {
+    if (!currentMovie || !currentMovie.id) {
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = `${proxyUrl(currentMovie.id)}?download=1`;
+    link.download = `D${currentMovie.id}.mp4`;
+    link.rel = "noopener";
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
+}
+
+videojs.registerComponent("DownloadButton", DownloadButton);
+
 const player = videojs("player", {
   controls: true,
   autoplay: false,
@@ -13,11 +39,22 @@ const player = videojs("player", {
   fluid: true,
   playbackRates: [0.75, 1, 1.25, 1.5, 2],
   controlBar: {
-    pictureInPictureToggle: true,
-    remainingTimeDisplay: false,
+    children: [
+      "playToggle",
+      "volumePanel",
+      "currentTimeDisplay",
+      "timeDivider",
+      "durationDisplay",
+      "progressControl",
+      "playbackRateMenuButton",
+      "DownloadButton",
+      "pictureInPictureToggle",
+      "fullscreenToggle",
+    ],
     volumePanel: { inline: false },
   },
 });
+
 const homePanel = document.getElementById("home-panel");
 const latestPanel = document.getElementById("latest-panel");
 const topPanel = document.getElementById("top-panel");
