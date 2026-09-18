@@ -34,12 +34,41 @@ class DownloadButton extends VjsButton {
 
 videojs.registerComponent("DownloadButton", DownloadButton);
 
+const desktopPointerMq = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+function desktopPlayerPointer() {
+  return desktopPointerMq.matches;
+}
+
+function syncPlayerIdleTimeout() {
+  player.options_.inactivityTimeout = desktopPlayerPointer() ? 0 : 3000;
+}
+
 const player = videojs("player", {
   controls: true,
   autoplay: false,
   preload: "metadata",
   fluid: true,
+  inactivityTimeout: desktopPlayerPointer() ? 0 : 3000,
   playbackRates: [0.75, 1, 1.25, 1.5, 2],
+  userActions: {
+    click(event) {
+      if (event.target.closest(".vjs-control-bar, .vjs-menu, .vjs-modal-dialog")) {
+        return;
+      }
+      if (!desktopPlayerPointer()) {
+        if (!this.paused()) {
+          this.userActive(!this.userActive());
+          return;
+        }
+      }
+      if (this.paused()) {
+        this.play();
+      } else {
+        this.pause();
+      }
+    },
+  },
   controlBar: {
     children: [
       "playToggle",
@@ -56,6 +85,13 @@ const player = videojs("player", {
     volumePanel: { inline: false },
   },
 });
+
+syncPlayerIdleTimeout();
+if (desktopPointerMq.addEventListener) {
+  desktopPointerMq.addEventListener("change", syncPlayerIdleTimeout);
+} else {
+  desktopPointerMq.addListener(syncPlayerIdleTimeout);
+}
 
 const homePanel = document.getElementById("home-panel");
 const latestPanel = document.getElementById("latest-panel");
