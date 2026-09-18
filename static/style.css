@@ -683,6 +683,8 @@ button:focus-visible {
 /* Soft bottom fade — Plyr-like */
 .desinema-player.video-js .vjs-control-bar {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   height: var(--vjs-bar-h);
   padding: 0 0.5em;
@@ -698,11 +700,12 @@ button:focus-visible {
 
 .desinema-player.video-js .vjs-control {
   flex: 0 0 auto;
+  height: 100%;
 }
 
 .desinema-player.video-js .vjs-button > .vjs-icon-placeholder::before {
-  line-height: var(--vjs-bar-h);
   font-size: 1.45em;
+  line-height: 2.07;
   color: #fff;
   text-shadow: none;
 }
@@ -724,28 +727,44 @@ button:focus-visible {
 .desinema-player.video-js .vjs-picture-in-picture-control,
 .desinema-player.video-js .vjs-playback-rate,
 .desinema-player.video-js .vjs-download-control {
+  flex: 0 0 2.4em;
   width: 2.4em;
+  min-width: 2.4em;
 }
 
 .desinema-player.video-js .vjs-volume-panel {
+  display: flex;
+  flex: 0 0 2.4em;
   width: 2.4em;
+  min-width: 2.4em;
+  justify-content: flex-start;
+}
+
+.desinema-player.video-js .vjs-volume-panel .vjs-mute-control {
+  flex: none;
 }
 
 /* Time */
 .desinema-player.video-js .vjs-time-control {
+  display: flex;
+  align-items: center;
+  height: 100%;
   font-size: 0.92em;
   font-weight: 500;
-  line-height: var(--vjs-bar-h);
+  line-height: 1;
   min-width: 0;
+  width: auto;
   padding: 0 0.2em;
   color: rgba(255, 255, 255, 0.92);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .desinema-player.video-js .vjs-current-time,
 .desinema-player.video-js .vjs-duration,
 .desinema-player.video-js .vjs-time-divider {
-  display: block;
+  display: flex;
+  align-items: center;
 }
 
 .desinema-player.video-js .vjs-time-divider {
@@ -754,11 +773,21 @@ button:focus-visible {
   color: rgba(255, 255, 255, 0.5);
 }
 
+.desinema-player.video-js .vjs-time-divider > div,
+.desinema-player.video-js .vjs-current-time-display,
+.desinema-player.video-js .vjs-duration-display {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
 /* Progress fills the middle */
 .desinema-player.video-js .vjs-progress-control {
   flex: 1 1 auto;
+  width: auto;
   min-width: 3em;
   height: 100%;
+  display: flex;
   align-items: center;
   margin: 0 0.45em;
 }
@@ -853,8 +882,18 @@ button:focus-visible {
   color: var(--gold);
 }
 
+.desinema-player.video-js .vjs-playback-rate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .desinema-player.video-js .vjs-playback-rate .vjs-playback-rate-value {
-  line-height: var(--vjs-bar-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  line-height: 1;
   font-size: 0.92em;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
@@ -868,9 +907,11 @@ button:focus-visible {
 .desinema-player.video-js .vjs-download-control .vjs-icon-placeholder::before {
   content: "";
   display: block;
+  position: absolute;
+  inset: 0;
   width: 1.1em;
   height: 1.1em;
-  margin: calc((var(--vjs-bar-h) - 1.1em) / 2) auto 0;
+  margin: auto;
   background: center / contain no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3Cpath d='M5 19h14'/%3E%3C/svg%3E");
 }
