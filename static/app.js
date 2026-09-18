@@ -6,7 +6,18 @@ const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const playerPanel = document.getElementById("player-panel");
 const nowPlaying = document.getElementById("now-playing");
-const player = document.getElementById("player");
+const player = videojs("player", {
+  controls: true,
+  autoplay: false,
+  preload: "metadata",
+  fluid: true,
+  playbackRates: [0.75, 1, 1.25, 1.5, 2],
+  controlBar: {
+    pictureInPictureToggle: true,
+    remainingTimeDisplay: false,
+    volumePanel: { inline: false },
+  },
+});
 const homePanel = document.getElementById("home-panel");
 const latestPanel = document.getElementById("latest-panel");
 const topPanel = document.getElementById("top-panel");
@@ -175,7 +186,7 @@ function highlightSelected(movieId) {
 }
 
 function startPlayback(src) {
-  player.src = src;
+  player.src({ src, type: "video/mp4" });
   const playPromise = player.play();
   if (playPromise) {
     playPromise.catch(() => {});
@@ -183,7 +194,13 @@ function startPlayback(src) {
 }
 
 function isPlayerFullscreen() {
-  if (player.webkitDisplayingFullscreen || player.webkitPresentationMode === "fullscreen") {
+  if (typeof player.isFullscreen === "function" && player.isFullscreen()) {
+    return true;
+  }
+  const el = typeof player.el === "function" ? player.el() : null;
+  const tech = typeof player.tech === "function" ? player.tech(true) : null;
+  const techEl = tech && typeof tech.el === "function" ? tech.el() : null;
+  if (techEl && (techEl.webkitDisplayingFullscreen || techEl.webkitPresentationMode === "fullscreen")) {
     return true;
   }
   const full =
@@ -191,7 +208,9 @@ function isPlayerFullscreen() {
     document.webkitFullscreenElement ||
     document.mozFullScreenElement ||
     document.msFullscreenElement;
-  return Boolean(full && (full === player || player.contains(full) || full.contains(player)));
+  return Boolean(
+    full && el && (full === el || el.contains(full) || (full.contains && full.contains(el)))
+  );
 }
 
 function parkPlayer() {
@@ -715,8 +734,8 @@ form.addEventListener("submit", (event) => {
   runSearch(queryInput.value.trim());
 });
 
-player.addEventListener("error", () => {
-  if (!currentMovie || !player.src) {
+player.on("error", () => {
+  if (!currentMovie || !player.currentSrc()) {
     return;
   }
   if (!usingProxy) {
