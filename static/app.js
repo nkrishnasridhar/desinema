@@ -20,9 +20,11 @@ class DownloadButton extends VjsButton {
     if (!currentMovie || !currentMovie.id) {
       return;
     }
+    const filename = downloadFilename(currentMovie);
+    const params = new URLSearchParams({ download: "1", filename });
     const link = document.createElement("a");
-    link.href = `${proxyUrl(currentMovie.id)}?download=1`;
-    link.download = `D${currentMovie.id}.mp4`;
+    link.href = `${proxyUrl(currentMovie.id)}?${params}`;
+    link.download = filename;
     link.rel = "noopener";
     document.body.append(link);
     link.click();
@@ -145,6 +147,15 @@ function cdnUrl(movieId) {
 
 function proxyUrl(movieId) {
   return `/api/stream/${encodeURIComponent(movieId)}`;
+}
+
+function downloadFilename(movie) {
+  const base = String(movie.title || "")
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const name = base || `D${movie.id}`;
+  return name.toLowerCase().endsWith(".mp4") ? name : `${name}.mp4`;
 }
 
 const RATING_LABELS = [

@@ -3,7 +3,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -32,6 +32,7 @@ FEATURED_LIMIT = 7
 WATCH_ID_RE = re.compile(r"/movie/watch/([A-Za-z0-9]+)/")
 MOVIE_ID_RE = re.compile(r"^[A-Za-z0-9]+$")
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
+UNSAFE_FILENAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 DOUBLE_VOWEL_RE = re.compile(r"([aeiou])\1", re.IGNORECASE)
 CDN_HOSTS = ("cdn2.einthusan.io", "cdn1.einthusan.io", "cdn3.einthusan.io")
 FORWARD_STREAM_HEADERS = {
@@ -873,7 +874,17 @@ def stream_movie(movie_id):
     if "content-type" not in lower_keys:
         response_headers["Content-Type"] = "video/mp4"
     if request.args.get("download") == "1":
-        response_headers["Content-Disposition"] = f'attachment; filename="D{movie_id}.mp4"'
+        raw_name = UNSAFE_FILENAME_RE.sub("", (request.args.get("filename") or "").strip()).strip(" .")
+        if not raw_name:
+            raw_name = f"D{movie_id}"
+        if not raw_name.lower().endswith(".mp4"):
+            raw_name = f"{raw_name}.mp4"
+        ascii_name = raw_name.encode("ascii", "ignore").decode("ascii").strip(" .") or f"D{movie_id}.mp4"
+        if not ascii_name.lower().endswith(".mp4"):
+            ascii_name = f"{ascii_name}.mp4"
+        response_headers["Content-Disposition"] = (
+            f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(raw_name)}'
+        )
 
     def generate():
         try:
