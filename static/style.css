@@ -553,11 +553,20 @@ button:focus-visible {
   min-width: 0;
 }
 
+.movie-ratings .rating-bar-fill.is-strong {
+  background: linear-gradient(90deg, #c9a056, #f0d28a);
+}
+
 .movie-ratings .rating-score {
   color: var(--gold-soft);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.movie-ratings .rating-score.is-strong {
+  color: var(--cream);
+  font-weight: 600;
 }
 
 .card-grid .movie-ratings .rating-label,
@@ -568,6 +577,11 @@ button:focus-visible {
 .result-meta .movie-ratings .rating-score,
 .now-playing-ratings .rating-score {
   color: var(--gold-soft);
+}
+
+.result-meta .movie-ratings .rating-score.is-strong,
+.now-playing-ratings .rating-score.is-strong {
+  color: var(--cream);
 }
 
 .now-playing-ratings {

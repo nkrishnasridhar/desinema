@@ -144,6 +144,11 @@ function createRatingsBlock(ratings, className = "movie-ratings") {
     bar.append(fill);
     const score = document.createElement("span");
     score.className = "rating-score";
+    const value = Number(ratings[key]);
+    if (value >= 4) {
+      score.classList.add("is-strong");
+      fill.classList.add("is-strong");
+    }
     score.textContent = formatScore(ratings[key]);
     row.append(name, bar, score);
     list.append(row);
