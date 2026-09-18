@@ -49,6 +49,17 @@
           >
             Latest
           </button>
+          <button
+            type="button"
+            class="tab"
+            id="tab-top"
+            role="tab"
+            data-tab="top"
+            aria-selected="false"
+            aria-controls="top-panel"
+          >
+            Top
+          </button>
         </nav>
         <form id="search-form" class="search-form">
           <label class="field query-field">
@@ -102,6 +113,62 @@
                   <button type="button" id="latest-prev">Prev</button>
                   <span id="latest-page-label">Page 1</span>
                   <button type="button" id="latest-next">Next</button>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section
+            id="top-panel"
+            class="browse-panel"
+            role="tabpanel"
+            aria-labelledby="tab-top"
+            hidden
+          >
+            <div class="top-filters">
+              <div
+                class="top-metrics"
+                role="group"
+                aria-label="Popularity metric"
+              >
+                <button
+                  type="button"
+                  class="top-metric is-active"
+                  data-ptype="view"
+                  aria-pressed="true"
+                >
+                  Views
+                </button>
+                <button
+                  type="button"
+                  class="top-metric"
+                  data-ptype="comment"
+                  aria-pressed="false"
+                >
+                  Comments
+                </button>
+                <button
+                  type="button"
+                  class="top-metric"
+                  data-ptype="rating"
+                  aria-pressed="false"
+                >
+                  Rates
+                </button>
+              </div>
+              <div
+                id="top-periods"
+                class="top-periods"
+                role="group"
+                aria-label="Time period"
+              ></div>
+            </div>
+            <ul id="top-results" class="results card-grid">
+              <li class="pager-slot">
+                <div class="pager">
+                  <button type="button" id="top-prev">Prev</button>
+                  <span id="top-page-label">Page 1</span>
+                  <button type="button" id="top-next">Next</button>
                 </div>
               </li>
             </ul>

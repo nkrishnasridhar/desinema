@@ -296,6 +296,68 @@ button:focus-visible {
   display: none;
 }
 
+.top-filters {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(26, 15, 18, 0.72);
+  border: 1px solid rgba(224, 177, 74, 0.16);
+}
+
+.top-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.1rem;
+  margin-bottom: 0.7rem;
+}
+
+.top-metric {
+  cursor: pointer;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.top-metric:hover {
+  color: var(--cream);
+}
+
+.top-metric.is-active {
+  color: #e8a0a8;
+}
+
+.top-periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.top-period {
+  cursor: pointer;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0.1rem 0;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.top-period:hover {
+  color: var(--cream);
+}
+
+.top-period.is-active {
+  color: #e8a0a8;
+  font-weight: 600;
+}
+
 .player-panel {
   width: 100%;
 }
@@ -480,7 +542,8 @@ video {
   cursor: not-allowed;
 }
 
-#latest-page-label {
+#latest-page-label,
+#top-page-label {
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.15rem;
   font-style: italic;
@@ -621,6 +684,7 @@ video {
 
   #home-results,
   #latest-results,
+  #top-results,
   #results {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

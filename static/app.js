@@ -9,12 +9,19 @@ const nowPlaying = document.getElementById("now-playing");
 const player = document.getElementById("player");
 const homePanel = document.getElementById("home-panel");
 const latestPanel = document.getElementById("latest-panel");
+const topPanel = document.getElementById("top-panel");
 const searchPanel = document.getElementById("search-panel");
 const homeResultsEl = document.getElementById("home-results");
 const latestResultsEl = document.getElementById("latest-results");
+const topResultsEl = document.getElementById("top-results");
+const topPeriodsEl = document.getElementById("top-periods");
 const latestPrevButton = document.getElementById("latest-prev");
 const latestNextButton = document.getElementById("latest-next");
 const latestPageLabel = document.getElementById("latest-page-label");
+const topPrevButton = document.getElementById("top-prev");
+const topNextButton = document.getElementById("top-next");
+const topPageLabel = document.getElementById("top-page-label");
+const topMetricButtons = document.querySelectorAll(".top-metric");
 const tabButtons = document.querySelectorAll(".tab");
 const stageEl = document.querySelector(".stage");
 
@@ -27,6 +34,63 @@ let homeLang = null;
 let latestLang = null;
 let latestPage = 1;
 let latestHasNext = false;
+let topLang = null;
+let topPage = 1;
+let topHasNext = false;
+let topPtype = "view";
+let topTp = "alltime";
+
+const RELATIVE_PERIODS = [
+  ["alltime", "All Time"],
+  ["td", "Today"],
+  ["yd", "Yesterday"],
+  ["tw", "This Week"],
+  ["tm", "This Month"],
+  ["ty", "This Year"],
+  ["lw", "Last Week"],
+  ["lm", "Last Month"],
+  ["ly", "Last Year"],
+  ["l10d", "Last 10 Days"],
+  ["l30d", "Last 30 Days"],
+  ["l2m", "Last 2 Months"],
+  ["l3m", "Last 3 Months"],
+  ["l4m", "Last 4 Months"],
+  ["l6m", "Last 6 Months"],
+  ["l12m", "Last 12 Months"],
+  ["l2y", "Last 2 Years"],
+];
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function calendarPeriods(count = 24) {
+  const periods = [];
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth();
+  for (let i = 0; i < count; i += 1) {
+    const code = `${MONTH_SHORT[month]}-${year}`;
+    periods.push([code, code.replace("-", " ")]);
+    month -= 1;
+    if (month < 0) {
+      month = 11;
+      year -= 1;
+    }
+  }
+  return periods.reverse();
+}
 
 function cdnUrl(movieId) {
   return `https://cdn2.einthusan.io/etv/content/D${movieId}.mp4`;
@@ -307,6 +371,51 @@ function updateLatestPager() {
   latestNextButton.disabled = !latestHasNext;
 }
 
+function updateTopPager() {
+  topPageLabel.textContent = `Page ${topPage}`;
+  topPrevButton.disabled = topPage <= 1;
+  topNextButton.disabled = !topHasNext;
+}
+
+function syncTopMetricButtons() {
+  for (const button of topMetricButtons) {
+    const active = button.dataset.ptype === topPtype;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function syncTopPeriodButtons() {
+  for (const button of topPeriodsEl.querySelectorAll(".top-period")) {
+    const active = button.dataset.tp === topTp;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function buildTopPeriods() {
+  topPeriodsEl.replaceChildren();
+  const periods = [...RELATIVE_PERIODS, ...calendarPeriods(24)];
+  for (const [code, label] of periods) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "top-period";
+    button.dataset.tp = code;
+    button.textContent = label;
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => {
+      if (topTp === code) {
+        return;
+      }
+      topTp = code;
+      syncTopPeriodButtons();
+      loadTop(1);
+    });
+    topPeriodsEl.append(button);
+  }
+  syncTopPeriodButtons();
+}
+
 async function readJson(response) {
   try {
     return await response.json();
@@ -381,6 +490,53 @@ async function loadLatest(page) {
   }
 }
 
+async function loadTop(page) {
+  const lang = languageSelect.value;
+  setListLoading(topResultsEl, "Loading top movies…");
+  topPrevButton.disabled = true;
+  topNextButton.disabled = true;
+
+  try {
+    const params = new URLSearchParams({
+      lang,
+      ptype: topPtype,
+      tp: topTp,
+      page: String(page),
+    });
+    const response = await fetch(`/api/top?${params}`);
+    const data = await readJson(response);
+    if (!response.ok) {
+      finishListLoading(topResultsEl);
+      setStatus(data.error || "Failed to load top movies.", true);
+      updateTopPager();
+      return;
+    }
+    const results = data.results || [];
+    topPage = data.page || page;
+    topHasNext = Boolean(data.has_next);
+    topLang = lang;
+    if (data.ptype) {
+      topPtype = data.ptype;
+      syncTopMetricButtons();
+    }
+    if (data.tp) {
+      topTp = data.tp;
+      syncTopPeriodButtons();
+    }
+    renderList(topResultsEl, results);
+    updateTopPager();
+    if (results.length === 0) {
+      setStatus("No top movies found.", true);
+      return;
+    }
+    setStatus("");
+  } catch {
+    finishListLoading(topResultsEl);
+    setStatus("Could not reach the server.", true);
+    updateTopPager();
+  }
+}
+
 function setTab(tab) {
   currentTab = tab;
   for (const button of tabButtons) {
@@ -388,6 +544,7 @@ function setTab(tab) {
   }
   homePanel.hidden = tab !== "home";
   latestPanel.hidden = tab !== "latest";
+  topPanel.hidden = tab !== "top";
   searchPanel.hidden = tab !== "search";
 
   if (tab === "home") {
@@ -397,6 +554,12 @@ function setTab(tab) {
       loadLatest(1);
     } else if (latestResultsEl.children.length === 0) {
       loadLatest(latestPage);
+    }
+  } else if (tab === "top") {
+    if (topLang !== languageSelect.value) {
+      loadTop(1);
+    } else if (!topResultsEl.querySelector(".result")) {
+      loadTop(topPage);
     }
   }
   requestAnimationFrame(placePlayerInVisibleList);
@@ -411,10 +574,13 @@ for (const button of tabButtons) {
 languageSelect.addEventListener("change", () => {
   homeLang = null;
   latestLang = null;
+  topLang = null;
   if (currentTab === "home") {
     loadHome();
   } else if (currentTab === "latest") {
     loadLatest(1);
+  } else if (currentTab === "top") {
+    loadTop(1);
   } else if (currentTab === "search" && lastSearchQuery) {
     runSearch(lastSearchQuery);
   }
@@ -431,6 +597,32 @@ latestNextButton.addEventListener("click", () => {
     loadLatest(latestPage + 1);
   }
 });
+
+topPrevButton.addEventListener("click", () => {
+  if (topPage > 1) {
+    loadTop(topPage - 1);
+  }
+});
+
+topNextButton.addEventListener("click", () => {
+  if (topHasNext) {
+    loadTop(topPage + 1);
+  }
+});
+
+for (const button of topMetricButtons) {
+  button.addEventListener("click", () => {
+    const next = button.dataset.ptype;
+    if (!next || topPtype === next) {
+      return;
+    }
+    topPtype = next;
+    syncTopMetricButtons();
+    loadTop(1);
+  });
+}
+
+buildTopPeriods();
 
 async function runSearch(query) {
   const lang = languageSelect.value;

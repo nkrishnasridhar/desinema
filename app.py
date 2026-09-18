@@ -76,6 +76,29 @@ REQUEST_HEADERS = {
 
 
 RATING_KEYS = ("action", "comedy", "romance", "storyline", "performance")
+PTYPES = ("view", "comment", "rating")
+RELATIVE_TP = (
+    "alltime",
+    "td",
+    "yd",
+    "tw",
+    "tm",
+    "ty",
+    "lw",
+    "lm",
+    "ly",
+    "l10d",
+    "l30d",
+    "l2m",
+    "l3m",
+    "l4m",
+    "l6m",
+    "l12m",
+    "l2y",
+)
+MONTH_TP_RE = re.compile(
+    r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}$"
+)
 
 
 def absolute_url(src):
@@ -622,6 +645,23 @@ def fetch_latest_results(lang, page):
     )
 
 
+def fetch_popularity_results(lang, ptype, tp, page):
+    html = fetch_html(
+        RESULTS_URL,
+        {
+            "lang": lang,
+            "find": "Popularity",
+            "ptype": ptype,
+            "tp": tp,
+            "page": page,
+        },
+        "Einthusan returned an empty popularity page.",
+    )
+    return parse_movie_list_html(
+        html, "Popularity results HTML did not contain movie listings."
+    )
+
+
 def fetch_featured_results(lang):
     html = fetch_html(
         BROWSE_URL,
@@ -683,6 +723,20 @@ def parse_language():
     return lang
 
 
+def parse_ptype():
+    ptype = (request.args.get("ptype") or "view").strip().lower()
+    if ptype not in PTYPES:
+        return None
+    return ptype
+
+
+def parse_tp():
+    tp = (request.args.get("tp") or "alltime").strip()
+    if tp in RELATIVE_TP or MONTH_TP_RE.fullmatch(tp):
+        return tp
+    return None
+
+
 @app.route("/")
 def index():
     return render_template("index.html", languages=LANGUAGES)
@@ -733,6 +787,46 @@ def latest():
             "page": page,
             "has_next": has_next,
             "has_prev": page > 1,
+        }
+    )
+
+
+@app.route("/api/top")
+def top():
+    lang = parse_language()
+    ptype = parse_ptype()
+    tp = parse_tp()
+    page_raw = (request.args.get("page") or "1").strip()
+    try:
+        page = int(page_raw)
+    except ValueError:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    if lang is None:
+        return jsonify({"results": [], "error": "Unsupported language."}), 400
+    if ptype is None:
+        return jsonify({"results": [], "error": "Invalid popularity type."}), 400
+    if tp is None:
+        return jsonify({"results": [], "error": "Invalid time period."}), 400
+    if page < 1:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    try:
+        results, has_next = fetch_popularity_results(lang, ptype, tp, page)
+    except requests.RequestException:
+        return jsonify({"results": [], "error": "Failed to reach Einthusan popularity."}), 502
+    except ValueError as exc:
+        return jsonify({"results": [], "error": str(exc)}), 502
+
+    enrich_movie_posters(results, lang)
+    return jsonify(
+        {
+            "results": results,
+            "page": page,
+            "has_next": has_next,
+            "has_prev": page > 1,
+            "ptype": ptype,
+            "tp": tp,
         }
     )
 
