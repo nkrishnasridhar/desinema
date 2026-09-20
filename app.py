@@ -91,7 +91,6 @@ REQUEST_HEADERS = {
 
 
 RATING_KEYS = ("action", "comedy", "romance", "storyline", "performance")
-PTYPES = ("view", "comment", "rating")
 NAMED_TP = (
     "alltime",
     "td",
@@ -776,13 +775,13 @@ def fetch_latest_results(lang, page):
     )
 
 
-def fetch_popularity_results(lang, ptype, tp, page):
+def fetch_popularity_results(lang, tp, page):
     html = fetch_html(
         RESULTS_URL,
         {
             "lang": lang,
             "find": "Popularity",
-            "ptype": ptype,
+            "ptype": "view",
             "tp": tp,
             "page": page,
         },
@@ -858,13 +857,6 @@ def parse_language():
     return lang
 
 
-def parse_ptype():
-    ptype = (request.args.get("ptype") or "view").strip().lower()
-    if ptype not in PTYPES:
-        return None
-    return ptype
-
-
 def parse_tp():
     tp = (request.args.get("tp") or "alltime").strip()
     if tp in NAMED_TP or LAST_N_TP_RE.fullmatch(tp) or MONTH_TP_RE.fullmatch(tp):
@@ -929,7 +921,6 @@ def latest():
 @app.route("/api/top")
 def top():
     lang = parse_language()
-    ptype = parse_ptype()
     tp = parse_tp()
     page_raw = (request.args.get("page") or "1").strip()
     try:
@@ -939,15 +930,13 @@ def top():
 
     if lang is None:
         return jsonify({"results": [], "error": "Unsupported language."}), 400
-    if ptype is None:
-        return jsonify({"results": [], "error": "Invalid popularity type."}), 400
     if tp is None:
         return jsonify({"results": [], "error": "Invalid time period."}), 400
     if page < 1:
         return jsonify({"results": [], "error": "Invalid page."}), 400
 
     try:
-        results, has_next = fetch_popularity_results(lang, ptype, tp, page)
+        results, has_next = fetch_popularity_results(lang, tp, page)
     except requests.RequestException:
         return jsonify({"results": [], "error": "Failed to reach Einthusan popularity."}), 502
     except ValueError as exc:
@@ -960,7 +949,6 @@ def top():
             "page": page,
             "has_next": has_next,
             "has_prev": page > 1,
-            "ptype": ptype,
             "tp": tp,
         }
     )

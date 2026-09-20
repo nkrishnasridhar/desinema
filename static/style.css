@@ -339,34 +339,6 @@ button:focus-visible {
   border: 1px solid rgba(224, 177, 74, 0.16);
 }
 
-.top-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem 1.1rem;
-  margin-bottom: 0.7rem;
-}
-
-.top-metric {
-  cursor: pointer;
-  appearance: none;
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--muted);
-}
-
-.top-metric:hover {
-  color: var(--cream);
-}
-
-.top-metric.is-active {
-  color: #e8a0a8;
-}
-
 .top-periods {
   display: flex;
   flex-direction: column;

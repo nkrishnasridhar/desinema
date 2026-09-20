@@ -107,7 +107,6 @@ const latestPageLabel = document.getElementById("latest-page-label");
 const topPrevButton = document.getElementById("top-prev");
 const topNextButton = document.getElementById("top-next");
 const topPageLabel = document.getElementById("top-page-label");
-const topMetricButtons = document.querySelectorAll(".top-metric");
 const topPresetButtons = document.querySelectorAll(".top-preset");
 const tabButtons = document.querySelectorAll(".tab");
 const stageEl = document.querySelector(".stage");
@@ -142,7 +141,6 @@ let latestHasNext = false;
 let topLang = null;
 let topPage = 1;
 let topHasNext = false;
-let topPtype = "view";
 let topTp = "alltime";
 
 const MONTH_SHORT = [
@@ -787,14 +785,6 @@ function updateTopPager() {
   topNextButton.disabled = !topHasNext;
 }
 
-function syncTopMetricButtons() {
-  for (const button of topMetricButtons) {
-    const active = button.dataset.ptype === topPtype;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-  }
-}
-
 function syncTopPeriodUi() {
   const lastMatch = LAST_N_TP_RE.exec(topTp);
   const monthMatch = MONTH_TP_RE.exec(topTp);
@@ -933,7 +923,6 @@ async function loadTop(page) {
   try {
     const params = new URLSearchParams({
       lang,
-      ptype: topPtype,
       tp: topTp,
       page: String(page),
     });
@@ -949,10 +938,6 @@ async function loadTop(page) {
     topPage = data.page || page;
     topHasNext = Boolean(data.has_next);
     topLang = lang;
-    if (data.ptype) {
-      topPtype = data.ptype;
-      syncTopMetricButtons();
-    }
     if (data.tp) {
       topTp = data.tp;
       syncTopPeriodUi();
@@ -1045,18 +1030,6 @@ topNextButton.addEventListener("click", () => {
     loadTop(topPage + 1);
   }
 });
-
-for (const button of topMetricButtons) {
-  button.addEventListener("click", () => {
-    const next = button.dataset.ptype;
-    if (!next || topPtype === next) {
-      return;
-    }
-    topPtype = next;
-    syncTopMetricButtons();
-    loadTop(1);
-  });
-}
 
 for (const button of topPresetButtons) {
   button.addEventListener("click", () => {
