@@ -34,6 +34,10 @@ MOVIE_ID_RE = re.compile(r"^[A-Za-z0-9]+$")
 YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
 UNSAFE_FILENAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 DOUBLE_VOWEL_RE = re.compile(r"([aeiou])\1", re.IGNORECASE)
+SHORT_VOWEL_RE = re.compile(
+    r"(?<=[bcdfghjklmnpqrstvwxyz])[iu](?=[bcdfghjklmnpqrstvwxyz])",
+    re.IGNORECASE,
+)
 CDN_HOSTS = ("cdn2.einthusan.io", "cdn1.einthusan.io", "cdn3.einthusan.io")
 FORWARD_STREAM_HEADERS = {
     "content-type",
@@ -215,15 +219,30 @@ def parse_featured_html(html):
 
 
 def normalize_title(value):
-    return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+    text = re.sub(r"&", " and ", (value or "").lower())
+    return re.sub(r"[^a-z0-9]+", "", text)
 
 
 def collapse_double_vowels(value):
     return DOUBLE_VOWEL_RE.sub(r"\1", value or "")
 
 
+def fold_short_vowels(value):
+    text = value or ""
+    for _ in range(8):
+        folded = SHORT_VOWEL_RE.sub("", text)
+        if folded == text:
+            return folded
+        text = folded
+    return text
+
+
 def translit_key(value):
     return collapse_double_vowels(normalize_title(value))
+
+
+def romanization_key(value):
+    return fold_short_vowels(translit_key(value))
 
 
 def colon_prefix(title):
@@ -323,17 +342,26 @@ def tmdb_title_score(query_title, hit):
     titles = (hit.get("title") or "", hit.get("original_title") or "")
     score = max(title_match_score(query_title, title) for title in titles)
     query_key = translit_key(query_title)
+    query_fold = romanization_key(query_title)
     query_norm = normalize_title(query_title)
-    if not query_key or not query_norm:
+    if not query_norm:
         return score
 
     for title in titles:
-        if translit_key(title) != query_key:
+        title_norm = normalize_title(title)
+        if not title_norm:
             continue
-        ratio = SequenceMatcher(None, query_norm, normalize_title(title)).ratio()
-        if ratio >= 0.88:
+        ratio = SequenceMatcher(None, query_norm, title_norm).ratio()
+        if query_key and translit_key(title) == query_key and ratio >= 0.88:
             score = max(score, 90.0)
-            break
+            continue
+        if (
+            query_fold
+            and romanization_key(title) == query_fold
+            and min(len(query_norm), len(title_norm)) >= 8
+            and ratio >= 0.85
+        ):
+            score = max(score, 90.0)
 
     prefix = colon_prefix(query_title)
     prefix_norm = normalize_title(prefix) if prefix else ""
@@ -358,14 +386,18 @@ def tmdb_search_queries(title):
 
     add(title)
     add(colon_prefix(title))
+    add(re.sub(r"\s+&\s+", " and ", title or ""))
+    add(re.sub(r"\s+\band\b\s+", " & ", title or "", flags=re.IGNORECASE))
     tokens = re.findall(r"[A-Za-z0-9]+", title or "")
     if tokens:
-        add(" ".join(tokens[:-1] + [collapse_double_vowels(tokens[-1])]))
-        add(" ".join(collapse_double_vowels(token) for token in tokens))
+        collapsed = [collapse_double_vowels(token) for token in tokens]
+        add(" ".join(tokens[:-1] + [collapsed[-1]]))
+        add(" ".join(collapsed))
+        add(" ".join(fold_short_vowels(token) for token in collapsed))
     return queries
 
 
-def search_tmdb_movies(title):
+def search_tmdb_movies(title, lang=None, year=None):
     seen_ids = set()
     hits = []
     for query in tmdb_search_queries(title):
@@ -387,7 +419,9 @@ def search_tmdb_movies(title):
                 continue
             seen_ids.add(movie_id)
             hits.append(hit)
-        if hits:
+        if lang and choose_tmdb_hit(title, hits, lang, year):
+            break
+        if not lang and hits:
             break
     return hits
 
@@ -545,7 +579,7 @@ def pick_tmdb_poster(title, year, lang):
     if not title:
         return None
 
-    chosen = choose_tmdb_hit(title, search_tmdb_movies(title), lang, year)
+    chosen = choose_tmdb_hit(title, search_tmdb_movies(title, lang, year), lang, year)
     if chosen is None:
         chosen = choose_tmdb_hit(title, discover_tmdb_movies(lang, year), lang, year)
     if chosen is None and year:
