@@ -47,10 +47,20 @@ FORWARD_STREAM_HEADERS = {
 }
 _cdn_url_cache = {}
 _tmdb_poster_cache = {}
+_tmdb_credits_cache = {}
 TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
 TMDB_DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 TMDB_MOVIE_IMAGES_URL = "https://api.themoviedb.org/3/movie/{movie_id}/images"
+TMDB_CREDITS_URL = "https://api.themoviedb.org/3/movie/{movie_id}/credits"
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+TMDB_PROFILE_BASE = "https://image.tmdb.org/t/p/w185"
+TMDB_MUSIC_JOBS = (
+    "Original Music Composer",
+    "Music",
+    "Music Director",
+    "Composer",
+    "Songs",
+)
 TMDB_TIMEOUT = 4
 TMDB_WORKERS = 6
 TMDB_YEAR_MATCH_MIN_SCORE = 70.0
@@ -310,6 +320,14 @@ def tmdb_poster_url(poster_path):
     if not str(poster_path).startswith("/"):
         poster_path = "/" + str(poster_path)
     return TMDB_IMAGE_BASE + poster_path
+
+
+def tmdb_profile_url(profile_path):
+    if not profile_path:
+        return None
+    if not str(profile_path).startswith("/"):
+        profile_path = "/" + str(profile_path)
+    return TMDB_PROFILE_BASE + profile_path
 
 
 def tmdb_auth():
@@ -582,7 +600,7 @@ def tmdb_overview_text(hit):
 
 def pick_tmdb_metadata(title, year, lang):
     if not title:
-        return None, None
+        return None, None, None
 
     chosen = choose_tmdb_hit(title, search_tmdb_movies(title, lang, year), lang, year)
     if chosen is None:
@@ -593,9 +611,9 @@ def pick_tmdb_metadata(title, year, lang):
         )
 
     if chosen is None:
-        return None, None
+        return None, None, None
     poster = best_poster_url(chosen.get("id"), chosen.get("poster_path"))
-    return poster, tmdb_overview_text(chosen)
+    return poster, tmdb_overview_text(chosen), chosen.get("id")
 
 
 def tmdb_cache_key(title, year, lang):
@@ -608,12 +626,12 @@ def lookup_tmdb_metadata(title, year, lang):
         cached = _tmdb_poster_cache[key]
         if isinstance(cached, dict):
             return cached
-        return {"poster": cached, "overview": None}
+        return {"poster": cached, "overview": None, "tmdb_id": None}
 
-    meta = {"poster": None, "overview": None}
+    meta = {"poster": None, "overview": None, "tmdb_id": None}
     try:
-        poster, overview = pick_tmdb_metadata(title, year, lang)
-        meta = {"poster": poster, "overview": overview}
+        poster, overview, tmdb_id = pick_tmdb_metadata(title, year, lang)
+        meta = {"poster": poster, "overview": overview, "tmdb_id": tmdb_id}
     except (requests.RequestException, ValueError, TypeError, KeyError):
         pass
 
@@ -626,6 +644,7 @@ def apply_tmdb_poster(movie, lang):
     meta = lookup_tmdb_metadata(movie.get("title"), movie.get("year"), lang)
     tmdb_url = meta.get("poster")
     overview = meta.get("overview")
+    tmdb_id = meta.get("tmdb_id")
     if tmdb_url:
         movie["poster"] = tmdb_url
         movie["poster_fallback"] = einthusan
@@ -635,7 +654,74 @@ def apply_tmdb_poster(movie, lang):
         movie["overview"] = overview
     else:
         movie.pop("overview", None)
+    if tmdb_id:
+        movie["tmdb_id"] = tmdb_id
+    else:
+        movie.pop("tmdb_id", None)
     return movie
+
+
+def tmdb_credit_item(role, person):
+    name = (person.get("name") or "").strip()
+    if not name:
+        return None
+    return {
+        "role": role,
+        "name": name,
+        "photo": tmdb_profile_url(person.get("profile_path")),
+    }
+
+
+def summarize_tmdb_credits(payload):
+    credits = []
+    seen = set()
+    crew = payload.get("crew") or []
+    cast = payload.get("cast") or []
+
+    def add(role, person):
+        item = tmdb_credit_item(role, person)
+        if not item:
+            return False
+        person_id = person.get("id")
+        if person_id is not None:
+            if person_id in seen:
+                return False
+            seen.add(person_id)
+        credits.append(item)
+        return True
+
+    director = next((member for member in crew if member.get("job") == "Director"), None)
+    if director:
+        add("Director", director)
+
+    ordered_cast = sorted(
+        cast,
+        key=lambda member: member.get("order") if isinstance(member.get("order"), int) else 999,
+    )
+    added_cast = 0
+    for person in ordered_cast:
+        if added_cast >= 5:
+            break
+        if add("Cast", person):
+            added_cast += 1
+
+    composer = next(
+        (member for member in crew if member.get("job") == "Original Music Composer"),
+        None,
+    )
+    if composer is None:
+        composer = next(
+            (
+                member
+                for member in crew
+                if (member.get("department") or "") == "Music"
+                and (member.get("job") or "") in TMDB_MUSIC_JOBS
+            ),
+            None,
+        )
+    if composer:
+        add("Music", composer)
+    return credits
 
 
 def enrich_movie_posters(movies, lang):
@@ -898,6 +984,26 @@ def search():
 
     enrich_movie_posters(results, lang)
     return jsonify({"results": results})
+
+
+@app.route("/api/tmdb/credits/<int:tmdb_id>")
+def tmdb_credits(tmdb_id):
+    if tmdb_id < 1:
+        return jsonify({"credits": [], "error": "Invalid id."}), 400
+    if not tmdb_configured():
+        return jsonify({"credits": []})
+    if tmdb_id in _tmdb_credits_cache:
+        return jsonify({"credits": _tmdb_credits_cache[tmdb_id]})
+
+    credits = []
+    try:
+        payload = tmdb_get(TMDB_CREDITS_URL.format(movie_id=tmdb_id))
+        credits = summarize_tmdb_credits(payload)
+    except (requests.RequestException, ValueError, TypeError, KeyError):
+        credits = []
+
+    _tmdb_credits_cache[tmdb_id] = credits
+    return jsonify({"credits": credits})
 
 
 @app.route("/api/stream/<movie_id>")

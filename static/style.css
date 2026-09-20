@@ -1407,6 +1407,97 @@ body.playbill-open {
   font-size: 0.78rem;
 }
 
+.playbill-credits {
+  display: grid;
+  min-height: 3.5rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid rgba(224, 177, 74, 0.16);
+}
+
+.playbill-credit {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(0.4rem);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.playbill-credit.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.playbill-credit.is-exit {
+  opacity: 0;
+  transform: translateY(-0.35rem);
+}
+
+.playbill-credit-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: var(--velvet-deep);
+  color: var(--gold);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.playbill-credit-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playbill-credit-photo.is-placeholder {
+  background: var(--velvet);
+}
+
+.playbill-credit-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.playbill-credit-role {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.playbill-credit-name {
+  overflow: hidden;
+  color: var(--cream);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playbill-credit {
+    transition: none;
+    transform: none;
+  }
+}
+
 .playbill-overview {
   margin: 0;
   padding-top: 1.15rem;
@@ -1495,6 +1586,25 @@ body.playbill-open {
   .playbill-ratings .rating-label,
   .playbill-ratings .rating-score {
     font-size: 0.68rem;
+  }
+
+  .playbill-credits {
+    min-height: 3rem;
+    padding-top: 0.75rem;
+  }
+
+  .playbill-credit {
+    gap: 0.65rem;
+  }
+
+  .playbill-credit-photo {
+    width: 2.6rem;
+    height: 2.6rem;
+    font-size: 1.05rem;
+  }
+
+  .playbill-credit-name {
+    font-size: 1.05rem;
   }
 
   .playbill-overview {

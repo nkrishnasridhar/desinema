@@ -119,10 +119,18 @@ const playbillYear = document.getElementById("playbill-year");
 const playbillRatings = document.getElementById("playbill-ratings");
 const playbillOverview = document.getElementById("playbill-overview");
 const playbillPlay = document.getElementById("playbill-play");
+const playbillCreditsEl = document.getElementById("playbill-credits");
+const playbillCreditSlides = [...playbillCreditsEl.querySelectorAll("[data-credit-slide]")];
 
 let currentMovie = null;
 let playbillMovie = null;
 let playbillOpener = null;
+let playbillCredits = [];
+let playbillCreditIndex = 0;
+let playbillCreditActive = 0;
+let playbillCreditTimer = 0;
+let playbillCreditFadeTimer = 0;
+let playbillCreditFetch = 0;
 let usingProxy = false;
 let lastResults = [];
 let lastSearchQuery = "";
@@ -418,6 +426,182 @@ function playbillFocusables() {
   return [...playbillPanel.querySelectorAll("button")].filter((el) => !el.disabled);
 }
 
+const CREDIT_DWELL_MS = 3000;
+const CREDIT_FADE_MS = 450;
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function creditInitial(name) {
+  const letter = String(name || "").trim().charAt(0);
+  return letter ? letter.toUpperCase() : "?";
+}
+
+function stopCreditTicker() {
+  window.clearTimeout(playbillCreditTimer);
+  window.clearTimeout(playbillCreditFadeTimer);
+  playbillCreditTimer = 0;
+  playbillCreditFadeTimer = 0;
+}
+
+function hideCreditTicker() {
+  stopCreditTicker();
+  playbillCredits = [];
+  playbillCreditIndex = 0;
+  playbillCreditActive = 0;
+  playbillCreditsEl.hidden = true;
+  for (const slide of playbillCreditSlides) {
+    slide.classList.remove("is-active", "is-exit");
+    slide.replaceChildren();
+  }
+}
+
+function prefetchCreditPhoto(credit) {
+  if (!credit || !credit.photo) {
+    return;
+  }
+  const img = new Image();
+  img.src = credit.photo;
+}
+
+function renderCreditSlide(slide, credit) {
+  slide.replaceChildren();
+  const photo = document.createElement("span");
+  photo.className = "playbill-credit-photo";
+  if (credit.photo) {
+    const img = document.createElement("img");
+    img.src = credit.photo;
+    img.alt = "";
+    img.addEventListener(
+      "error",
+      () => {
+        img.remove();
+        photo.textContent = creditInitial(credit.name);
+        photo.classList.add("is-placeholder");
+      },
+      { once: true }
+    );
+    photo.append(img);
+  } else {
+    photo.textContent = creditInitial(credit.name);
+    photo.classList.add("is-placeholder");
+  }
+  const meta = document.createElement("span");
+  meta.className = "playbill-credit-meta";
+  const role = document.createElement("span");
+  role.className = "playbill-credit-role";
+  role.textContent = credit.role;
+  const name = document.createElement("span");
+  name.className = "playbill-credit-name";
+  name.textContent = credit.name;
+  meta.append(role, name);
+  slide.append(photo, meta);
+}
+
+function showCreditAt(index, animate) {
+  const credit = playbillCredits[index];
+  if (!credit) {
+    return;
+  }
+  const incoming = playbillCreditSlides[1 - playbillCreditActive];
+  const outgoing = playbillCreditSlides[playbillCreditActive];
+  renderCreditSlide(incoming, credit);
+  if (!animate || prefersReducedMotion() || playbillCredits.length < 2) {
+    outgoing.classList.remove("is-active", "is-exit");
+    incoming.classList.add("is-active");
+    incoming.classList.remove("is-exit");
+    playbillCreditActive = 1 - playbillCreditActive;
+    return;
+  }
+  incoming.classList.remove("is-exit");
+  incoming.classList.add("is-active");
+  outgoing.classList.add("is-exit");
+  outgoing.classList.remove("is-active");
+  playbillCreditActive = 1 - playbillCreditActive;
+  playbillCreditFadeTimer = window.setTimeout(() => {
+    outgoing.classList.remove("is-exit");
+  }, CREDIT_FADE_MS);
+}
+
+function scheduleNextCredit() {
+  window.clearTimeout(playbillCreditTimer);
+  playbillCreditTimer = 0;
+  if (
+    playbillCredits.length < 2 ||
+    prefersReducedMotion() ||
+    document.hidden ||
+    !playbillMovie
+  ) {
+    return;
+  }
+  playbillCreditTimer = window.setTimeout(() => {
+    playbillCreditIndex = (playbillCreditIndex + 1) % playbillCredits.length;
+    prefetchCreditPhoto(playbillCredits[(playbillCreditIndex + 1) % playbillCredits.length]);
+    showCreditAt(playbillCreditIndex, true);
+    scheduleNextCredit();
+  }, CREDIT_DWELL_MS);
+}
+
+function orderedCredits(credits) {
+  const list = Array.isArray(credits) ? credits.filter((item) => item && item.name) : [];
+  const rank = { Director: 0, Cast: 1, Music: 2 };
+  return list
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const delta = (rank[a.item.role] ?? 9) - (rank[b.item.role] ?? 9);
+      return delta || a.index - b.index;
+    })
+    .map((entry) => entry.item);
+}
+
+function startCreditTicker(credits) {
+  stopCreditTicker();
+  playbillCredits = orderedCredits(credits);
+  playbillCreditIndex = 0;
+  playbillCreditActive = 0;
+  if (playbillCredits.length === 0) {
+    playbillCreditsEl.hidden = true;
+    return;
+  }
+  playbillCreditsEl.hidden = false;
+  renderCreditSlide(playbillCreditSlides[0], playbillCredits[0]);
+  playbillCreditSlides[0].classList.add("is-active");
+  playbillCreditSlides[0].classList.remove("is-exit");
+  playbillCreditSlides[1].classList.remove("is-active", "is-exit");
+  playbillCreditSlides[1].replaceChildren();
+  prefetchCreditPhoto(playbillCredits[1]);
+  scheduleNextCredit();
+}
+
+async function loadPlaybillCredits(movie) {
+  const token = ++playbillCreditFetch;
+  hideCreditTicker();
+  if (Array.isArray(movie.credits) && movie.credits.length) {
+    if (token === playbillCreditFetch && playbillMovie === movie) {
+      startCreditTicker(movie.credits);
+    }
+    return;
+  }
+  const tmdbId = movie.tmdb_id;
+  if (!tmdbId) {
+    return;
+  }
+  try {
+    const response = await fetch(`/api/tmdb/credits/${encodeURIComponent(tmdbId)}`);
+    const data = await readJson(response);
+    const credits = data.credits || [];
+    movie.credits = credits;
+    if (token === playbillCreditFetch && playbillMovie === movie) {
+      startCreditTicker(credits);
+    }
+  } catch {
+    if (token === playbillCreditFetch) {
+      hideCreditTicker();
+    }
+  }
+}
+
 function fillPlaybill(movie) {
   playbillTitle.textContent = movieLabel(movie);
   if (movie.year) {
@@ -442,9 +626,12 @@ function fillPlaybill(movie) {
     playbillPoster.hidden = true;
     playbillPoster.removeAttribute("src");
   }
+  loadPlaybillCredits(movie);
 }
 
 function closePlaybill() {
+  hideCreditTicker();
+  playbillCreditFetch += 1;
   if (playbillEl.hidden || !playbillEl.classList.contains("is-open")) {
     playbillEl.hidden = true;
     playbillEl.classList.remove("is-open");
@@ -947,6 +1134,17 @@ playbillPlay.addEventListener("click", () => {
   closePlaybill();
   if (movie) {
     playMovie(movie);
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    window.clearTimeout(playbillCreditTimer);
+    playbillCreditTimer = 0;
+    return;
+  }
+  if (playbillMovie && playbillCredits.length > 1 && playbillEl.classList.contains("is-open")) {
+    scheduleNextCredit();
   }
 });
 
