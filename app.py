@@ -575,9 +575,14 @@ def choose_tmdb_hit(title, hits, lang, year):
     return chosen
 
 
-def pick_tmdb_poster(title, year, lang):
+def tmdb_overview_text(hit):
+    text = (hit.get("overview") or "").strip()
+    return text or None
+
+
+def pick_tmdb_metadata(title, year, lang):
     if not title:
-        return None
+        return None, None
 
     chosen = choose_tmdb_hit(title, search_tmdb_movies(title, lang, year), lang, year)
     if chosen is None:
@@ -588,37 +593,48 @@ def pick_tmdb_poster(title, year, lang):
         )
 
     if chosen is None:
-        return None
-    return best_poster_url(chosen.get("id"), chosen.get("poster_path"))
+        return None, None
+    poster = best_poster_url(chosen.get("id"), chosen.get("poster_path"))
+    return poster, tmdb_overview_text(chosen)
 
 
 def tmdb_cache_key(title, year, lang):
     return (normalize_title(title), str(year or ""), lang)
 
 
-def lookup_tmdb_poster(title, year, lang):
+def lookup_tmdb_metadata(title, year, lang):
     key = tmdb_cache_key(title, year, lang)
     if key in _tmdb_poster_cache:
-        return _tmdb_poster_cache[key]
+        cached = _tmdb_poster_cache[key]
+        if isinstance(cached, dict):
+            return cached
+        return {"poster": cached, "overview": None}
 
-    url = None
+    meta = {"poster": None, "overview": None}
     try:
-        url = pick_tmdb_poster(title, year, lang)
+        poster, overview = pick_tmdb_metadata(title, year, lang)
+        meta = {"poster": poster, "overview": overview}
     except (requests.RequestException, ValueError, TypeError, KeyError):
-        url = None
+        pass
 
-    _tmdb_poster_cache[key] = url
-    return url
+    _tmdb_poster_cache[key] = meta
+    return meta
 
 
 def apply_tmdb_poster(movie, lang):
     einthusan = movie.get("poster")
-    tmdb_url = lookup_tmdb_poster(movie.get("title"), movie.get("year"), lang)
+    meta = lookup_tmdb_metadata(movie.get("title"), movie.get("year"), lang)
+    tmdb_url = meta.get("poster")
+    overview = meta.get("overview")
     if tmdb_url:
         movie["poster"] = tmdb_url
         movie["poster_fallback"] = einthusan
     else:
         movie["poster_fallback"] = None
+    if overview:
+        movie["overview"] = overview
+    else:
+        movie.pop("overview", None)
     return movie
 
 

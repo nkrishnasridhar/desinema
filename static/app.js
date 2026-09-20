@@ -111,8 +111,18 @@ const topMetricButtons = document.querySelectorAll(".top-metric");
 const topPresetButtons = document.querySelectorAll(".top-preset");
 const tabButtons = document.querySelectorAll(".tab");
 const stageEl = document.querySelector(".stage");
+const playbillEl = document.getElementById("playbill");
+const playbillPanel = document.getElementById("playbill-panel");
+const playbillPoster = document.getElementById("playbill-poster");
+const playbillTitle = document.getElementById("playbill-title");
+const playbillYear = document.getElementById("playbill-year");
+const playbillRatings = document.getElementById("playbill-ratings");
+const playbillOverview = document.getElementById("playbill-overview");
+const playbillPlay = document.getElementById("playbill-play");
 
 let currentMovie = null;
+let playbillMovie = null;
+let playbillOpener = null;
 let usingProxy = false;
 let lastResults = [];
 let lastSearchQuery = "";
@@ -383,32 +393,128 @@ function playMovie(movie) {
   });
 }
 
-function createResultButton(movie) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "result";
-  button.dataset.id = movie.id;
+function movieOverview(movie) {
+  return String(movie && movie.overview ? movie.overview : "").trim();
+}
 
+function bindPosterFallback(poster, movie) {
+  if (!movie.poster_fallback || movie.poster_fallback === movie.poster) {
+    return;
+  }
+  poster.addEventListener(
+    "error",
+    () => {
+      if (poster.dataset.fallbackApplied) {
+        return;
+      }
+      poster.dataset.fallbackApplied = "1";
+      poster.src = movie.poster_fallback;
+    },
+    { once: true }
+  );
+}
+
+function playbillFocusables() {
+  return [...playbillPanel.querySelectorAll("button")].filter((el) => !el.disabled);
+}
+
+function fillPlaybill(movie) {
+  playbillTitle.textContent = movieLabel(movie);
+  if (movie.year) {
+    playbillYear.hidden = false;
+    playbillYear.textContent = movie.year;
+  } else {
+    playbillYear.hidden = true;
+    playbillYear.textContent = "";
+  }
+  playbillRatings.replaceChildren();
+  const ratingsBlock = createRatingsBlock(movie.ratings, "movie-ratings playbill-ratings");
+  if (ratingsBlock) {
+    playbillRatings.append(ratingsBlock);
+  }
+  playbillOverview.textContent = movieOverview(movie);
+  if (movie.poster) {
+    playbillPoster.hidden = false;
+    playbillPoster.src = movie.poster;
+    playbillPoster.alt = "";
+    bindPosterFallback(playbillPoster, movie);
+  } else {
+    playbillPoster.hidden = true;
+    playbillPoster.removeAttribute("src");
+  }
+}
+
+function closePlaybill() {
+  if (playbillEl.hidden || !playbillEl.classList.contains("is-open")) {
+    playbillEl.hidden = true;
+    playbillEl.classList.remove("is-open");
+    document.body.classList.remove("playbill-open");
+    return;
+  }
+  playbillEl.classList.remove("is-open");
+  document.body.classList.remove("playbill-open");
+  const opener = playbillOpener;
+  playbillMovie = null;
+  playbillOpener = null;
+  let finished = false;
+  const finish = () => {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    playbillPanel.removeEventListener("transitionend", onEnd);
+    playbillEl.hidden = true;
+    if (opener && typeof opener.focus === "function") {
+      opener.focus();
+    }
+  };
+  const onEnd = (event) => {
+    if (event.target !== playbillPanel) {
+      return;
+    }
+    finish();
+  };
+  playbillPanel.addEventListener("transitionend", onEnd);
+  window.setTimeout(finish, 400);
+}
+
+function openPlaybill(movie, opener) {
+  const overview = movieOverview(movie);
+  if (!overview) {
+    return;
+  }
+  playbillMovie = movie;
+  playbillOpener = opener || null;
+  fillPlaybill(movie);
+  playbillEl.hidden = false;
+  document.body.classList.add("playbill-open");
+  requestAnimationFrame(() => {
+    playbillEl.classList.add("is-open");
+    playbillPanel.focus();
+  });
+}
+
+function createResultButton(movie) {
+  const card = document.createElement("div");
+  card.className = "result";
+  card.dataset.id = movie.id;
+
+  const play = document.createElement("button");
+  play.type = "button";
+  play.className = "result-play";
+  play.setAttribute("aria-label", `Play ${movieLabel(movie)}`);
+
+  const media = document.createElement("span");
+  media.className = "result-media";
   const poster = movie.poster ? document.createElement("img") : document.createElement("span");
   poster.className = "poster";
   if (movie.poster) {
     poster.src = movie.poster;
     poster.alt = "";
-    if (movie.poster_fallback && movie.poster_fallback !== movie.poster) {
-      poster.addEventListener(
-        "error",
-        () => {
-          if (poster.dataset.fallbackApplied) {
-            return;
-          }
-          poster.dataset.fallbackApplied = "1";
-          poster.src = movie.poster_fallback;
-        },
-        { once: true }
-      );
-    }
+    bindPosterFallback(poster, movie);
   }
-  button.append(poster);
+  media.append(poster);
+  play.append(media);
 
   const meta = document.createElement("span");
   meta.className = "result-meta";
@@ -424,9 +530,24 @@ function createResultButton(movie) {
   if (ratingsBlock) {
     meta.append(ratingsBlock);
   }
-  button.append(meta);
-  button.addEventListener("click", () => playMovie(movie));
-  return button;
+  play.append(meta);
+  play.addEventListener("click", () => playMovie(movie));
+  card.append(play);
+
+  if (movieOverview(movie)) {
+    const info = document.createElement("button");
+    info.type = "button";
+    info.className = "result-info";
+    info.setAttribute("aria-label", `Movie info: ${movieLabel(movie)}`);
+    info.textContent = "i";
+    info.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openPlaybill(movie, info);
+    });
+    card.append(info);
+  }
+  return card;
 }
 
 function clearMovieCards(container) {
@@ -665,6 +786,7 @@ async function loadTop(page) {
 
 function setTab(tab) {
   currentTab = tab;
+  closePlaybill();
   for (const button of tabButtons) {
     button.setAttribute("aria-selected", button.dataset.tab === tab ? "true" : "false");
   }
@@ -698,6 +820,7 @@ for (const button of tabButtons) {
 }
 
 languageSelect.addEventListener("change", () => {
+  closePlaybill();
   homeLang = null;
   latestLang = null;
   topLang = null;
@@ -811,6 +934,49 @@ async function runSearch(query) {
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   runSearch(queryInput.value.trim());
+});
+
+playbillEl.addEventListener("click", (event) => {
+  if (event.target.closest("[data-playbill-dismiss]")) {
+    closePlaybill();
+  }
+});
+
+playbillPlay.addEventListener("click", () => {
+  const movie = playbillMovie;
+  closePlaybill();
+  if (movie) {
+    playMovie(movie);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (playbillEl.hidden || !playbillEl.classList.contains("is-open")) {
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closePlaybill();
+    return;
+  }
+  if (event.key !== "Tab") {
+    return;
+  }
+  const nodes = playbillFocusables();
+  if (nodes.length === 0) {
+    event.preventDefault();
+    playbillPanel.focus();
+    return;
+  }
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 
 player.on("error", () => {

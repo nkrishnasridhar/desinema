@@ -274,6 +274,37 @@
         </a>
       </footer>
     </main>
+    <div id="playbill" class="playbill" hidden>
+      <div class="playbill-backdrop" data-playbill-dismiss></div>
+      <aside
+        id="playbill-panel"
+        class="playbill-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="playbill-title"
+        tabindex="-1"
+      >
+        <div class="playbill-handle" aria-hidden="true"></div>
+        <button type="button" class="playbill-x" data-playbill-dismiss aria-label="Close">
+          ×
+        </button>
+        <div class="playbill-body">
+          <div class="playbill-hero">
+            <img id="playbill-poster" class="playbill-poster" alt="" hidden />
+            <div class="playbill-copy">
+              <h2 id="playbill-title" class="playbill-title"></h2>
+              <p id="playbill-year" class="playbill-year" hidden></p>
+              <div id="playbill-ratings"></div>
+            </div>
+          </div>
+          <p id="playbill-overview" class="playbill-overview"></p>
+        </div>
+        <div class="playbill-actions">
+          <button type="button" id="playbill-play" class="playbill-play">Play</button>
+          <button type="button" class="playbill-close" data-playbill-dismiss>Close</button>
+        </div>
+      </aside>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/video.js@8.23.4/dist/video.min.js" defer></script>
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>
