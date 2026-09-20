@@ -684,9 +684,10 @@ def summarize_tmdb_credits(payload):
             return False
         person_id = person.get("id")
         if person_id is not None:
-            if person_id in seen:
+            key = (person_id, role)
+            if key in seen:
                 return False
-            seen.add(person_id)
+            seen.add(key)
         credits.append(item)
         return True
 
