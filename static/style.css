@@ -746,6 +746,8 @@ button:focus-visible {
 }
 
 .desinema-player.video-js .vjs-play-control,
+.desinema-player.video-js .vjs-skip-backward-10,
+.desinema-player.video-js .vjs-skip-forward-30,
 .desinema-player.video-js .vjs-mute-control,
 .desinema-player.video-js .vjs-fullscreen-control,
 .desinema-player.video-js .vjs-picture-in-picture-control,

@@ -66,8 +66,14 @@ const player = videojs("player", {
     },
   },
   controlBar: {
+    skipButtons: {
+      backward: 10,
+      forward: 30,
+    },
     children: [
       "playToggle",
+      "skipBackward",
+      "skipForward",
       "volumePanel",
       "currentTimeDisplay",
       "timeDivider",
