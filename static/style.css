@@ -326,6 +326,11 @@ button:focus-visible {
 
 .list-column {
   min-width: 0;
+  width: 100%;
+}
+
+.browse-panel {
+  width: 100%;
 }
 
 .browse-panel[hidden] {
@@ -997,7 +1002,9 @@ button:focus-visible {
   grid-column: 7;
   grid-row: 1;
   min-width: 0;
+  width: 100%;
   align-self: stretch;
+  justify-self: stretch;
 }
 
 .pager {
@@ -1006,9 +1013,11 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 0.7rem;
+  box-sizing: border-box;
+  width: 100%;
   height: 100%;
   margin: 0;
-  padding: 0.75rem 0.45rem;
+  padding: 0.75rem 0.35rem;
   background: rgba(26, 15, 18, 0.85);
   border: 1px solid rgba(224, 177, 74, 0.18);
 }
@@ -1054,20 +1063,25 @@ button:focus-visible {
   --card-gap: 0.7rem;
   display: grid;
   gap: var(--card-gap);
+  width: 100%;
 }
 
 .card-grid.is-loading > li:not(.player-slot) {
   display: none;
 }
 
-#home-results,
-#latest-results {
+#home-results {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-#results,
+#latest-results,
 #top-results,
 #pick-results {
+  /* 6 movie columns + a compact pager column (same on Latest/Top/Pick) */
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(4.75rem, 6.25rem);
+}
+
+#results {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
