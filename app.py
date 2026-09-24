@@ -91,6 +91,8 @@ REQUEST_HEADERS = {
 
 
 RATING_KEYS = ("action", "comedy", "romance", "storyline", "performance")
+RATING_MINS = (0, 1, 2, 3, 4)
+RATECOUNTS = (1, 5, 10, 20, 50, 100)
 NAMED_TP = (
     "alltime",
     "td",
@@ -796,6 +798,25 @@ def fetch_popularity_results(lang, tp, page):
         return [], False
 
 
+def fetch_rating_results(lang, filters, page):
+    html = fetch_html(
+        RESULTS_URL,
+        {
+            "lang": lang,
+            "find": "Rating",
+            **filters,
+            "page": page,
+        },
+        "Einthusan returned an empty rating page.",
+    )
+    try:
+        return parse_movie_list_html(
+            html, "Rating results HTML did not contain movie listings."
+        )
+    except ValueError:
+        return [], False
+
+
 def fetch_featured_results(lang):
     html = fetch_html(
         BROWSE_URL,
@@ -862,6 +883,29 @@ def parse_tp():
     if tp in NAMED_TP or LAST_N_TP_RE.fullmatch(tp) or MONTH_TP_RE.fullmatch(tp):
         return tp
     return None
+
+
+def parse_rating_filters():
+    filters = {}
+    for key in RATING_KEYS:
+        raw = (request.args.get(key) or "0").strip()
+        try:
+            value = int(raw)
+        except ValueError:
+            return None
+        if value not in RATING_MINS:
+            return None
+        filters[key] = value
+
+    ratecount_raw = (request.args.get("ratecount") or "1").strip()
+    try:
+        ratecount = int(ratecount_raw)
+    except ValueError:
+        return None
+    if ratecount not in RATECOUNTS:
+        return None
+    filters["ratecount"] = ratecount
+    return filters
 
 
 @app.route("/")
@@ -950,6 +994,42 @@ def top():
             "has_next": has_next,
             "has_prev": page > 1,
             "tp": tp,
+        }
+    )
+
+
+@app.route("/api/pick")
+def pick():
+    lang = parse_language()
+    filters = parse_rating_filters()
+    page_raw = (request.args.get("page") or "1").strip()
+    try:
+        page = int(page_raw)
+    except ValueError:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    if lang is None:
+        return jsonify({"results": [], "error": "Unsupported language."}), 400
+    if filters is None:
+        return jsonify({"results": [], "error": "Invalid rating filters."}), 400
+    if page < 1:
+        return jsonify({"results": [], "error": "Invalid page."}), 400
+
+    try:
+        results, has_next = fetch_rating_results(lang, filters, page)
+    except requests.RequestException:
+        return jsonify({"results": [], "error": "Failed to reach Einthusan ratings."}), 502
+    except ValueError as exc:
+        return jsonify({"results": [], "error": str(exc)}), 502
+
+    enrich_movie_posters(results, lang)
+    return jsonify(
+        {
+            "results": results,
+            "page": page,
+            "has_next": has_next,
+            "has_prev": page > 1,
+            **filters,
         }
     )
 

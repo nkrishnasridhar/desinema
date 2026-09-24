@@ -91,22 +91,34 @@ const player = videojs("player", {
 const homePanel = document.getElementById("home-panel");
 const latestPanel = document.getElementById("latest-panel");
 const topPanel = document.getElementById("top-panel");
+const pickPanel = document.getElementById("pick-panel");
 const searchPanel = document.getElementById("search-panel");
 const homeResultsEl = document.getElementById("home-results");
 const latestResultsEl = document.getElementById("latest-results");
 const topResultsEl = document.getElementById("top-results");
+const pickResultsEl = document.getElementById("pick-results");
 const topCustomLastForm = document.getElementById("top-custom-last");
 const topCustomCalendarForm = document.getElementById("top-custom-calendar");
 const topLastNInput = document.getElementById("top-last-n");
 const topLastUnitSelect = document.getElementById("top-last-unit");
 const topMonthSelect = document.getElementById("top-month");
 const topYearInput = document.getElementById("top-year");
+const pickFiltersForm = document.getElementById("pick-filters");
+const pickActionSelect = document.getElementById("pick-action");
+const pickComedySelect = document.getElementById("pick-comedy");
+const pickRomanceSelect = document.getElementById("pick-romance");
+const pickStorylineSelect = document.getElementById("pick-storyline");
+const pickPerformanceSelect = document.getElementById("pick-performance");
+const pickRatecountSelect = document.getElementById("pick-ratecount");
 const latestPrevButton = document.getElementById("latest-prev");
 const latestNextButton = document.getElementById("latest-next");
 const latestPageLabel = document.getElementById("latest-page-label");
 const topPrevButton = document.getElementById("top-prev");
 const topNextButton = document.getElementById("top-next");
 const topPageLabel = document.getElementById("top-page-label");
+const pickPrevButton = document.getElementById("pick-prev");
+const pickNextButton = document.getElementById("pick-next");
+const pickPageLabel = document.getElementById("pick-page-label");
 const topPresetButtons = document.querySelectorAll(".top-preset");
 const tabButtons = document.querySelectorAll(".tab");
 const stageEl = document.querySelector(".stage");
@@ -142,6 +154,17 @@ let topLang = null;
 let topPage = 1;
 let topHasNext = false;
 let topTp = "alltime";
+let pickLang = null;
+let pickPage = 1;
+let pickHasNext = false;
+let pickFilters = {
+  action: 0,
+  comedy: 0,
+  romance: 0,
+  storyline: 0,
+  performance: 0,
+  ratecount: 1,
+};
 
 const MONTH_SHORT = [
   "Jan",
@@ -785,6 +808,46 @@ function updateTopPager() {
   topNextButton.disabled = !topHasNext;
 }
 
+function updatePickPager() {
+  pickPageLabel.textContent = `Page ${pickPage}`;
+  pickPrevButton.disabled = pickPage <= 1;
+  pickNextButton.disabled = !pickHasNext;
+}
+
+function syncPickFilterUi() {
+  pickActionSelect.value = String(pickFilters.action);
+  pickComedySelect.value = String(pickFilters.comedy);
+  pickRomanceSelect.value = String(pickFilters.romance);
+  pickStorylineSelect.value = String(pickFilters.storyline);
+  pickPerformanceSelect.value = String(pickFilters.performance);
+  pickRatecountSelect.value = String(pickFilters.ratecount);
+}
+
+function readPickFiltersFromForm() {
+  return {
+    action: Number.parseInt(pickActionSelect.value, 10),
+    comedy: Number.parseInt(pickComedySelect.value, 10),
+    romance: Number.parseInt(pickRomanceSelect.value, 10),
+    storyline: Number.parseInt(pickStorylineSelect.value, 10),
+    performance: Number.parseInt(pickPerformanceSelect.value, 10),
+    ratecount: Number.parseInt(pickRatecountSelect.value, 10),
+  };
+}
+
+function applyPickFilters() {
+  const next = readPickFiltersFromForm();
+  const keys = ["action", "comedy", "romance", "storyline", "performance", "ratecount"];
+  for (const key of keys) {
+    if (!Number.isInteger(next[key])) {
+      setStatus("Choose valid rating filters.", true);
+      syncPickFilterUi();
+      return;
+    }
+  }
+  pickFilters = next;
+  loadPick(1);
+}
+
 function syncTopPeriodUi() {
   const lastMatch = LAST_N_TP_RE.exec(topTp);
   const monthMatch = MONTH_TP_RE.exec(topTp);
@@ -956,6 +1019,60 @@ async function loadTop(page) {
   }
 }
 
+async function loadPick(page) {
+  const lang = languageSelect.value;
+  setListLoading(pickResultsEl, "Loading picked movies…");
+  pickPrevButton.disabled = true;
+  pickNextButton.disabled = true;
+
+  try {
+    const params = new URLSearchParams({
+      lang,
+      action: String(pickFilters.action),
+      comedy: String(pickFilters.comedy),
+      romance: String(pickFilters.romance),
+      storyline: String(pickFilters.storyline),
+      performance: String(pickFilters.performance),
+      ratecount: String(pickFilters.ratecount),
+      page: String(page),
+    });
+    const response = await fetch(`/api/pick?${params}`);
+    const data = await readJson(response);
+    if (!response.ok) {
+      finishListLoading(pickResultsEl);
+      setStatus(data.error || "Failed to load picked movies.", true);
+      updatePickPager();
+      return;
+    }
+    const results = data.results || [];
+    pickPage = data.page || page;
+    pickHasNext = Boolean(data.has_next);
+    pickLang = lang;
+    const keys = ["action", "comedy", "romance", "storyline", "performance", "ratecount"];
+    let synced = false;
+    for (const key of keys) {
+      if (data[key] != null) {
+        pickFilters[key] = Number(data[key]);
+        synced = true;
+      }
+    }
+    if (synced) {
+      syncPickFilterUi();
+    }
+    renderList(pickResultsEl, results);
+    updatePickPager();
+    if (results.length === 0) {
+      setStatus("No movies match these ratings.", true);
+      return;
+    }
+    setStatus("");
+  } catch {
+    finishListLoading(pickResultsEl);
+    setStatus("Could not reach the server.", true);
+    updatePickPager();
+  }
+}
+
 function setTab(tab) {
   currentTab = tab;
   closePlaybill();
@@ -965,6 +1082,7 @@ function setTab(tab) {
   homePanel.hidden = tab !== "home";
   latestPanel.hidden = tab !== "latest";
   topPanel.hidden = tab !== "top";
+  pickPanel.hidden = tab !== "pick";
   searchPanel.hidden = tab !== "search";
 
   if (tab === "home") {
@@ -981,6 +1099,12 @@ function setTab(tab) {
     } else if (!topResultsEl.querySelector(".result")) {
       loadTop(topPage);
     }
+  } else if (tab === "pick") {
+    if (pickLang !== languageSelect.value) {
+      loadPick(1);
+    } else if (!pickResultsEl.querySelector(".result")) {
+      loadPick(pickPage);
+    }
   }
   requestAnimationFrame(placePlayerInVisibleList);
 }
@@ -996,12 +1120,15 @@ languageSelect.addEventListener("change", () => {
   homeLang = null;
   latestLang = null;
   topLang = null;
+  pickLang = null;
   if (currentTab === "home") {
     loadHome();
   } else if (currentTab === "latest") {
     loadLatest(1);
   } else if (currentTab === "top") {
     loadTop(1);
+  } else if (currentTab === "pick") {
+    loadPick(1);
   } else if (currentTab === "search" && lastSearchQuery) {
     runSearch(lastSearchQuery);
   }
@@ -1031,6 +1158,18 @@ topNextButton.addEventListener("click", () => {
   }
 });
 
+pickPrevButton.addEventListener("click", () => {
+  if (pickPage > 1) {
+    loadPick(pickPage - 1);
+  }
+});
+
+pickNextButton.addEventListener("click", () => {
+  if (pickHasNext) {
+    loadPick(pickPage + 1);
+  }
+});
+
 for (const button of topPresetButtons) {
   button.addEventListener("click", () => {
     applyTopTp(button.dataset.tp);
@@ -1047,8 +1186,14 @@ topCustomCalendarForm.addEventListener("submit", (event) => {
   applyCalendarCustom();
 });
 
+pickFiltersForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  applyPickFilters();
+});
+
 initTopPeriodDefaults();
 syncTopPeriodUi();
+syncPickFilterUi();
 
 async function runSearch(query) {
   const lang = languageSelect.value;

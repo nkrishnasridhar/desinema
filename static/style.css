@@ -442,6 +442,49 @@ button:focus-visible {
   filter: brightness(1.06);
 }
 
+.pick-periods {
+  margin: 0;
+}
+
+.pick-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.55rem 0.65rem;
+}
+
+.pick-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pick-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.pick-field select {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--cream);
+  background: var(--seat);
+  border: 1px solid rgba(224, 177, 74, 0.22);
+  border-radius: 2px;
+  padding: 0.38rem 0.35rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.pick-apply {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
 @media (max-width: 899px) {
   .top-custom-rows {
     flex-direction: column;
@@ -449,6 +492,19 @@ button:focus-visible {
   }
 
   .top-custom {
+    width: 100%;
+  }
+
+  .pick-row {
+    flex-wrap: wrap;
+  }
+
+  .pick-field {
+    flex: 1 1 calc(50% - 0.4rem);
+  }
+
+  .pick-apply {
+    flex: 1 1 100%;
     width: 100%;
   }
 }
@@ -971,7 +1027,8 @@ button:focus-visible {
 }
 
 #latest-page-label,
-#top-page-label {
+#top-page-label,
+#pick-page-label {
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.15rem;
   font-style: italic;
@@ -1008,7 +1065,9 @@ button:focus-visible {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-#results {
+#results,
+#top-results,
+#pick-results {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
@@ -1185,6 +1244,7 @@ button:focus-visible {
   #home-results,
   #latest-results,
   #top-results,
+  #pick-results,
   #results {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

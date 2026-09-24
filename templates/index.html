@@ -64,6 +64,17 @@
           >
             Top
           </button>
+          <button
+            type="button"
+            class="tab"
+            id="tab-pick"
+            role="tab"
+            data-tab="pick"
+            aria-selected="false"
+            aria-controls="pick-panel"
+          >
+            Pick
+          </button>
         </nav>
         <form id="search-form" class="search-form">
           <label class="field query-field">
@@ -210,6 +221,92 @@
                   <button type="button" id="top-prev">Prev</button>
                   <span id="top-page-label">Page 1</span>
                   <button type="button" id="top-next">Next</button>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section
+            id="pick-panel"
+            class="browse-panel"
+            role="tabpanel"
+            aria-labelledby="tab-pick"
+            hidden
+          >
+            <div class="top-filters">
+              <form id="pick-filters" class="pick-periods" aria-label="Rating filters" autocomplete="off">
+                <div class="pick-row">
+                  <label class="pick-field" for="pick-action">
+                    <span class="pick-label">Action</span>
+                    <select id="pick-action" name="action">
+                      <option value="0" selected>ANY</option>
+                      <option value="1">1+ stars</option>
+                      <option value="2">2+ stars</option>
+                      <option value="3">3+ stars</option>
+                      <option value="4">4+ stars</option>
+                    </select>
+                  </label>
+                  <label class="pick-field" for="pick-comedy">
+                    <span class="pick-label">Comedy</span>
+                    <select id="pick-comedy" name="comedy">
+                      <option value="0" selected>ANY</option>
+                      <option value="1">1+ stars</option>
+                      <option value="2">2+ stars</option>
+                      <option value="3">3+ stars</option>
+                      <option value="4">4+ stars</option>
+                    </select>
+                  </label>
+                  <label class="pick-field" for="pick-romance">
+                    <span class="pick-label">Romance</span>
+                    <select id="pick-romance" name="romance">
+                      <option value="0" selected>ANY</option>
+                      <option value="1">1+ stars</option>
+                      <option value="2">2+ stars</option>
+                      <option value="3">3+ stars</option>
+                      <option value="4">4+ stars</option>
+                    </select>
+                  </label>
+                  <label class="pick-field" for="pick-storyline">
+                    <span class="pick-label">Storyline</span>
+                    <select id="pick-storyline" name="storyline">
+                      <option value="0" selected>ANY</option>
+                      <option value="1">1+ stars</option>
+                      <option value="2">2+ stars</option>
+                      <option value="3">3+ stars</option>
+                      <option value="4">4+ stars</option>
+                    </select>
+                  </label>
+                  <label class="pick-field" for="pick-performance">
+                    <span class="pick-label">Performance</span>
+                    <select id="pick-performance" name="performance">
+                      <option value="0" selected>ANY</option>
+                      <option value="1">1+ stars</option>
+                      <option value="2">2+ stars</option>
+                      <option value="3">3+ stars</option>
+                      <option value="4">4+ stars</option>
+                    </select>
+                  </label>
+                  <label class="pick-field" for="pick-ratecount">
+                    <span class="pick-label">At Least</span>
+                    <select id="pick-ratecount" name="ratecount">
+                      <option value="1" selected>1 rates</option>
+                      <option value="5">5 rates</option>
+                      <option value="10">10 rates</option>
+                      <option value="20">20 rates</option>
+                      <option value="50">50 rates</option>
+                      <option value="100">100 rates</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="top-apply pick-apply">Apply</button>
+                </div>
+              </form>
+            </div>
+            <ul id="pick-results" class="results card-grid">
+              <li class="pager-slot">
+                <div class="pager">
+                  <button type="button" id="pick-prev">Prev</button>
+                  <span id="pick-page-label">Page 1</span>
+                  <button type="button" id="pick-next">Next</button>
                 </div>
               </li>
             </ul>
