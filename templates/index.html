@@ -14,7 +14,7 @@
       href="https://cdn.jsdelivr.net/npm/video.js@8.23.4/dist/video-js.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4" />
   </head>
   <body>
     <div class="house" aria-hidden="true">
@@ -76,28 +76,36 @@
             Pick
           </button>
         </nav>
-        <form id="search-form" class="search-form">
-          <label class="field query-field">
-            <span class="visually-hidden">Title</span>
-            <input
-              id="query"
-              name="q"
-              type="search"
-              placeholder="Search a movie"
-              autocomplete="off"
-              required
-            />
+        <div class="toolbar-controls">
+          <label class="field language-field">
+            <span class="visually-hidden">Language</span>
+            <select id="language" name="lang" aria-label="Language">
+              {% for language in languages %}
+              <option value="{{ language }}"{% if loop.first %} selected{% endif %}>{{ language|capitalize }}</option>
+              {% endfor %}
+            </select>
           </label>
-          <button type="submit">Search</button>
-        </form>
-        <label class="field language-field">
-          <span class="visually-hidden">Language</span>
-          <select id="language" name="lang" aria-label="Language">
-            {% for language in languages %}
-            <option value="{{ language }}"{% if loop.first %} selected{% endif %}>{{ language|capitalize }}</option>
-            {% endfor %}
-          </select>
-        </label>
+          <form id="search-form" class="search-form">
+            <label class="field query-field">
+              <span class="visually-hidden">Title</span>
+              <input
+                id="query"
+                name="q"
+                type="search"
+                placeholder="Search a movie"
+                autocomplete="off"
+                required
+              />
+            </label>
+            <button type="submit" aria-label="Search">
+              <span class="search-label">Search</span>
+              <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M15.5 15.5 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          </form>
+        </div>
       </div>
 
       <p id="status" class="status" role="status" hidden></p>
