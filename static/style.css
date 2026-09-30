@@ -628,13 +628,14 @@ button:focus-visible {
 
 .top-custom-rows {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem 1rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
 }
 
 .top-custom {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.4rem;
   margin: 0;
@@ -642,6 +643,8 @@ button:focus-visible {
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: rgba(10, 6, 8, 0.35);
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .top-custom.is-active {
@@ -669,6 +672,11 @@ button:focus-visible {
   border-radius: var(--radius);
   min-height: var(--control-h);
   padding: 0.35rem 0.55rem;
+}
+
+.top-custom .menu-select {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .top-custom select {
@@ -762,12 +770,13 @@ button:focus-visible {
 
 @media (max-width: 899px) {
   .top-custom-rows {
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: stretch;
   }
 
   .top-custom {
-    width: 100%;
+    width: auto;
+    flex: 1 1 auto;
   }
 
   .pick-row {
