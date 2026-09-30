@@ -4,6 +4,8 @@ A local web app for searching and playing Indian movies.
 
 Search and playback information is retrieved from Einthusan. Movie posters are matched against TMDB, with the source image used as a fallback when no confident TMDB match is available.
 
+![DeSinema preview — Top movies browse view](preview.jpg)
+
 ## Run locally
 
 ```powershell
