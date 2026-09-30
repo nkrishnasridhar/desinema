@@ -470,7 +470,11 @@ def discover_tmdb_movies(lang, year=None, any_language=False):
 def fetch_tmdb_movie_posters(movie_id):
     payload = tmdb_get(
         TMDB_MOVIE_IMAGES_URL.format(movie_id=movie_id),
-        {"include_image_language": ",".join(("null",) + TMDB_POSTER_LANGUAGES)},
+        {
+            "include_image_language": ",".join(
+                ("null", "en") + TMDB_POSTER_LANGUAGES
+            )
+        },
     )
     return payload.get("posters") or []
 
@@ -486,23 +490,23 @@ def is_two_by_three(width, height):
     return abs((width / height) - (2 / 3)) <= 0.02
 
 
-def is_usable_poster(poster, require_language):
+def is_usable_poster(poster, language_mode):
     path = poster.get("file_path")
     if not path or not is_two_by_three(poster.get("width"), poster.get("height")):
         return False
     iso_code = poster.get("iso_639_1")
-    if require_language:
+    if language_mode == "indian":
         return iso_code in TMDB_POSTER_LANGUAGES
+    if language_mode == "english":
+        return iso_code == "en"
     return not iso_code
 
 
 def first_two_by_three_poster_path(posters):
-    for poster in posters:
-        if is_usable_poster(poster, require_language=True):
-            return poster.get("file_path")
-    for poster in posters:
-        if is_usable_poster(poster, require_language=False):
-            return poster.get("file_path")
+    for language_mode in ("indian", "english", "null"):
+        for poster in posters:
+            if is_usable_poster(poster, language_mode):
+                return poster.get("file_path")
     return None
 
 
