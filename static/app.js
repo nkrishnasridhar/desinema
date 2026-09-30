@@ -286,6 +286,7 @@ function createRatingsBlock(ratings, className = "movie-ratings") {
 }
 
 function setStatus(message, isError = false) {
+  statusEl.classList.remove("is-busy");
   if (!message) {
     statusEl.hidden = true;
     statusEl.textContent = "";
@@ -360,7 +361,8 @@ function movieCards(list) {
     (el) =>
       el.matches("li") &&
       !el.classList.contains("player-slot") &&
-      !el.classList.contains("pager-slot")
+      !el.classList.contains("pager-slot") &&
+      !el.classList.contains("skeleton-slot")
   );
 }
 
@@ -722,7 +724,19 @@ function createResultButton(movie) {
     bindPosterFallback(poster, movie);
   }
   media.append(poster);
-  play.append(media);
+  if (movieOverview(movie)) {
+    const info = document.createElement("button");
+    info.type = "button";
+    info.className = "result-info";
+    info.setAttribute("aria-label", `Movie info: ${movieLabel(movie)}`);
+    info.textContent = "i";
+    info.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openPlaybill(movie, info);
+    });
+    media.append(info);
+  }
 
   const meta = document.createElement("span");
   meta.className = "result-meta";
@@ -738,23 +752,9 @@ function createResultButton(movie) {
   if (ratingsBlock) {
     meta.append(ratingsBlock);
   }
-  play.append(meta);
-  play.addEventListener("click", () => playMovie(movie));
-  card.append(play);
 
-  if (movieOverview(movie)) {
-    const info = document.createElement("button");
-    info.type = "button";
-    info.className = "result-info";
-    info.setAttribute("aria-label", `Movie info: ${movieLabel(movie)}`);
-    info.textContent = "i";
-    info.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openPlaybill(movie, info);
-    });
-    card.append(info);
-  }
+  play.addEventListener("click", () => playMovie(movie));
+  card.append(play, media, meta);
   return card;
 }
 
@@ -767,14 +767,39 @@ function clearMovieCards(container) {
   }
 }
 
+function removeSkeletons(container) {
+  for (const item of container.querySelectorAll(":scope > .skeleton-slot")) {
+    item.remove();
+  }
+}
+
 function setListLoading(container, message) {
   clearMovieCards(container);
+  removeSkeletons(container);
+  const pager = container.querySelector(":scope > .pager-slot");
+  for (let i = 0; i < 6; i += 1) {
+    const item = document.createElement("li");
+    item.className = "skeleton-slot";
+    item.setAttribute("aria-hidden", "true");
+    const bone = document.createElement("div");
+    bone.className = "skeleton-card";
+    item.append(bone);
+    if (pager) {
+      pager.before(item);
+    } else {
+      container.append(item);
+    }
+  }
   container.classList.add("is-loading");
+  container.setAttribute("aria-busy", "true");
   setStatus(message);
+  statusEl.classList.add("is-busy");
 }
 
 function finishListLoading(container) {
+  removeSkeletons(container);
   container.classList.remove("is-loading");
+  container.removeAttribute("aria-busy");
 }
 
 function renderList(container, movies) {

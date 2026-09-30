@@ -14,7 +14,7 @@
       href="https://cdn.jsdelivr.net/npm/video.js@8.23.4/dist/video-js.min.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5" />
   </head>
   <body>
     <div class="house" aria-hidden="true">
@@ -361,7 +361,9 @@
       >
         <div class="playbill-handle" aria-hidden="true"></div>
         <button type="button" class="playbill-x" data-playbill-dismiss aria-label="Close">
-          ×
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+          </svg>
         </button>
         <div class="playbill-body">
           <div class="playbill-hero">
