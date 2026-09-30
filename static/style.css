@@ -242,9 +242,9 @@ body.is-playing .curtain-right {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(4.25rem, 1fr));
+  grid-template-columns: repeat(4, minmax(5.25rem, 1fr));
   gap: 0;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -253,16 +253,30 @@ body.is-playing .curtain-right {
 }
 
 .tab {
+  position: relative;
   cursor: pointer;
   letter-spacing: 0.04em;
   min-height: var(--control-h);
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.75rem;
   border: 0;
   border-right: 1px solid var(--line);
   border-radius: 0;
   background: transparent;
   color: var(--muted);
+  font-weight: 600;
+  text-align: center;
   box-shadow: none;
+}
+
+.tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: transparent;
+  pointer-events: none;
 }
 
 .tab:last-child {
@@ -277,8 +291,11 @@ body.is-playing .curtain-right {
 .tab[aria-selected="true"] {
   background: rgba(224, 177, 74, 0.16);
   color: var(--cream);
-  font-weight: 600;
-  box-shadow: inset 0 -2px 0 var(--gold);
+  box-shadow: none;
+}
+
+.tab[aria-selected="true"]::after {
+  background: var(--gold);
 }
 
 .toolbar-controls {
@@ -1599,7 +1616,7 @@ button:focus-visible {
   .tab[aria-selected="true"] {
     background: rgba(224, 177, 74, 0.16);
     color: var(--cream);
-    box-shadow: inset 0 -2px 0 var(--gold);
+    box-shadow: none;
   }
 
   .toolbar-controls {
