@@ -211,10 +211,6 @@ function tpFromCalendar(month, year) {
   return `${month}-${year}`;
 }
 
-function cdnUrl(movieId) {
-  return `https://cdn2.einthusan.io/etv/content/D${movieId}.mp4`;
-}
-
 function proxyUrl(movieId) {
   return `/api/stream/${encodeURIComponent(movieId)}`;
 }
@@ -403,7 +399,7 @@ function placePlayerInVisibleList() {
 
 function playMovie(movie) {
   currentMovie = movie;
-  usingProxy = false;
+  usingProxy = true;
   document.body.classList.add("is-playing");
   playerPanel.classList.remove("animation-done");
   playerPanel.classList.add("is-active");
@@ -417,7 +413,7 @@ function playMovie(movie) {
     nowPlaying.append(ratingsBlock);
   }
   highlightSelected(movie.id);
-  startPlayback(cdnUrl(movie.id));
+  startPlayback(proxyUrl(movie.id));
   requestAnimationFrame(() => {
     placePlayerInVisibleList();
     playerPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });

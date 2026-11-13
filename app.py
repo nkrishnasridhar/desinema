@@ -1,9 +1,10 @@
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.parse import quote, urljoin
+from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -38,7 +39,8 @@ SHORT_VOWEL_RE = re.compile(
     r"(?<=[bcdfghjklmnpqrstvwxyz])[iu](?=[bcdfghjklmnpqrstvwxyz])",
     re.IGNORECASE,
 )
-CDN_HOSTS = ("cdn2.einthusan.io", "cdn1.einthusan.io", "cdn3.einthusan.io")
+CDN_HOST = "cdn1.einthusan.io"
+SIGNED_URL_SKEW_SECONDS = 30
 FORWARD_STREAM_HEADERS = {
     "content-type",
     "content-length",
@@ -830,18 +832,67 @@ def fetch_featured_results(lang):
     return parse_featured_html(html)
 
 
-def cdn_mp4_url(host, movie_id):
-    return f"https://{host}/etv/content/D{movie_id}.mp4"
+def signed_mp4_from_link(raw_link):
+    parsed = urlparse(raw_link or "")
+    query = parse_qs(parsed.query)
+    expires_values = query.get("e") or []
+    signature_values = query.get("md5") or []
+    if not parsed.path or not expires_values or not signature_values:
+        raise ValueError("Watch page video URL was not signed.")
+    try:
+        expires = int(expires_values[0])
+    except ValueError as exc:
+        raise ValueError("Watch page video URL was not signed.") from exc
+    signed = urlunparse(
+        (
+            "https",
+            CDN_HOST,
+            parsed.path,
+            "",
+            urlencode({"e": expires_values[0], "md5": signature_values[0]}),
+            "",
+        )
+    )
+    return signed, expires
 
 
-def iter_cdn_urls(movie_id):
+def fetch_signed_mp4(movie_id):
+    html = fetch_html(
+        f"{EINTHUSAN_ORIGIN}/movie/watch/{movie_id}/",
+        None,
+        "Einthusan returned an empty watch page.",
+    )
+    player = BeautifulSoup(html, "html.parser").select_one("#UIVideoPlayer")
+    raw_link = player.get("data-mp4-link") if player else None
+    if not raw_link:
+        raise ValueError("Watch page did not include a video URL.")
+    return signed_mp4_from_link(raw_link)
+
+
+def cached_signed_url(movie_id):
     cached = _cdn_url_cache.get(movie_id)
-    if cached:
-        yield cached
-    for host in CDN_HOSTS:
-        url = cdn_mp4_url(host, movie_id)
-        if url != cached:
-            yield url
+    if not cached:
+        return None
+    if cached["expires"] <= time.time() + SIGNED_URL_SKEW_SECONDS:
+        _cdn_url_cache.pop(movie_id, None)
+        return None
+    return cached["url"]
+
+
+def remember_signed_url(movie_id, url, expires):
+    _cdn_url_cache[movie_id] = {"url": url, "expires": expires}
+
+
+def resolve_signed_url(movie_id, force_refresh=False):
+    if force_refresh:
+        _cdn_url_cache.pop(movie_id, None)
+    else:
+        cached = cached_signed_url(movie_id)
+        if cached:
+            return cached
+    url, expires = fetch_signed_mp4(movie_id)
+    remember_signed_url(movie_id, url, expires)
+    return url
 
 
 def open_cdn_stream(movie_id, range_header):
@@ -850,8 +901,9 @@ def open_cdn_stream(movie_id, range_header):
         "Referer": f"{EINTHUSAN_ORIGIN}/",
         "Accept": "*/*",
     }
-    last_response = None
-    for url in iter_cdn_urls(movie_id):
+    url = resolve_signed_url(movie_id)
+    refreshed = False
+    while True:
         headers = dict(headers_base)
         if range_header:
             headers["Range"] = range_header
@@ -863,16 +915,20 @@ def open_cdn_stream(movie_id, range_header):
                 timeout=(10, 60),
             )
         except requests.RequestException:
+            if refreshed:
+                raise
+            url = resolve_signed_url(movie_id, force_refresh=True)
+            refreshed = True
             continue
         if response.status_code in (200, 206, 416):
-            if response.status_code in (200, 206):
-                _cdn_url_cache[movie_id] = url
             return response
-        last_response = response
         response.close()
-    if last_response is not None:
-        return last_response
-    raise requests.RequestException("Failed to reach the video CDN.")
+        _cdn_url_cache.pop(movie_id, None)
+        if response.status_code in (403, 404) and not refreshed:
+            url = resolve_signed_url(movie_id, force_refresh=True)
+            refreshed = True
+            continue
+        return response
 
 
 def parse_language():
@@ -1086,6 +1142,8 @@ def stream_movie(movie_id):
 
     try:
         upstream = open_cdn_stream(movie_id, request.headers.get("Range"))
+    except ValueError:
+        return jsonify({"error": "Video file was not found on the CDN."}), 404
     except requests.RequestException:
         return jsonify({"error": "Failed to reach the video CDN."}), 502
 
